@@ -3,18 +3,6 @@ import PhotosUI
 import UNetVisualizerKit
 import CoreML
 
-class SegmentationModelHandler {
-    private let model: SegmentationModel
-    
-    init() throws {
-        self.model = try SegmentationModel(configuration: MLModelConfiguration())
-    }
-    
-    func getModel() -> MLModel {
-        return model.model
-    }
-}
-
 struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
@@ -25,8 +13,16 @@ struct ContentView: View {
     
     @StateObject private var visualizer: UNetVisualizer = {
         do {
-            let modelHandler = try SegmentationModelHandler()
-            return try UNetVisualizer(model: modelHandler.getModel())
+            // Option 1: Initialize with compiled model instance (compile-time loading)
+            // Uncomment and replace YourCompiledModel with your actual model class:
+            // let compiledModel = try YourCompiledModel(configuration: MLModelConfiguration())
+            // let modelHandler = UNetModelHandler(compiledModel: compiledModel)
+            
+            // Option 2: Initialize with model name from bundle
+            // Replace "YourModelName" with your actual model file name
+            let modelHandler = try UNetModelHandler(modelName: "YourModelName")
+            
+            return UNetVisualizer(modelHandler: modelHandler)
         } catch {
             fatalError("Failed to load model: \(error)")
         }

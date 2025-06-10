@@ -57,9 +57,9 @@ public class UNetModelHandler {
         return 1 // Default channel count
     }
     
-    public init(modelName: String) throws {
+    public init(modelName: String, bundle: Bundle = .main) throws {
         // Load model from bundle
-        guard let modelURL = Bundle.main.url(forResource: modelName, withExtension: "mlmodelc") else {
+        guard let modelURL = bundle.url(forResource: modelName, withExtension: "mlmodelc") else {
             print("Model file '\(modelName).mlmodelc' not found in bundle.")
             throw UNetModelError.modelLoadingFailed
         }
@@ -72,6 +72,13 @@ public class UNetModelHandler {
             print("Failed to load the UNet model: \(error)")
             throw UNetModelError.modelLoadingFailed
         }
+    }
+    
+    /// Initialize with a pre-compiled MLModel instance
+    /// This enables compile-time model loading when you have a generated model class
+    /// Usage: let handler = try UNetModelHandler(compiledModel: YourModel(configuration: .init()))
+    public init(compiledModel: MLModel) {
+        self.model = compiledModel
     }
     
     /// Initialize with a specific model URL
@@ -91,7 +98,8 @@ public class UNetModelHandler {
         }
     }
     
-    /// Initialize with an MLModel directly
+    /// Initialize with an MLModel directly (deprecated, use init(compiledModel:) instead)
+    @available(*, deprecated, renamed: "init(compiledModel:)")
     public init(model: MLModel) {
         self.model = model
     }

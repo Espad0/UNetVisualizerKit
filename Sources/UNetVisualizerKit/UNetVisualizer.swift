@@ -68,7 +68,16 @@ public final class UNetVisualizer: ObservableObject {
     
     /// Initialize with an MLModel
     public init(model: MLModel, configuration: Configuration = Configuration()) throws {
-        self.model = try UNetModelHandler(model: model)
+        self.model = UNetModelHandler(compiledModel: model)
+        self.configuration = configuration
+        self.performanceMonitor = PerformanceMonitor()
+        
+        setupBindings()
+    }
+    
+    /// Initialize with a UNetModelHandler
+    public init(modelHandler: UNetModelHandler, configuration: Configuration = Configuration()) {
+        self.model = modelHandler
         self.configuration = configuration
         self.performanceMonitor = PerformanceMonitor()
         

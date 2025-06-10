@@ -101,3 +101,4 @@ iOSInjectionProject/
 
 # But keep example models
 !Examples/Models/*.mlmodel
+CLAUDE.md
