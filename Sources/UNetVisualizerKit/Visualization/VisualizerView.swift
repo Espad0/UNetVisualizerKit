@@ -8,13 +8,13 @@ public struct UNetVisualizerView: View {
     @State private var selectedChannel: Int = 0
     @State private var showSettings: Bool = false
     
-    private let modelURL: URL
+    private let model: MLModel
     
-    public init(modelURL: URL) {
-        self.modelURL = modelURL
+    public init(model: MLModel) {
+        self.model = model
         self._visualizer = StateObject(wrappedValue: {
             do {
-                return try UNetVisualizer(modelURL: modelURL)
+                return try UNetVisualizer(model: model)
             } catch {
                 fatalError("Failed to initialize visualizer: \(error)")
             }

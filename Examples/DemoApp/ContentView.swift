@@ -1,6 +1,19 @@
 import SwiftUI
 import PhotosUI
 import UNetVisualizerKit
+import CoreML
+
+class SegmentationModelHandler {
+    private let model: SegmentationModel
+    
+    init() throws {
+        self.model = try SegmentationModel(configuration: MLModelConfiguration())
+    }
+    
+    func getModel() -> MLModel {
+        return model.model
+    }
+}
 
 struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
@@ -10,12 +23,10 @@ struct ContentView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     
-    // Model URL - in a real app, this would be bundled or downloaded
-    private let modelURL = Bundle.main.url(forResource: "SegmentationModel", withExtension: "mlmodel")!
-    
     @StateObject private var visualizer: UNetVisualizer = {
         do {
-            return try UNetVisualizer(modelURL: Bundle.main.url(forResource: "SegmentationModel", withExtension: "mlmodel")!)
+            let modelHandler = try SegmentationModelHandler()
+            return try UNetVisualizer(model: modelHandler.getModel())
         } catch {
             fatalError("Failed to load model: \(error)")
         }
@@ -214,9 +225,9 @@ struct DemoSettingsView: View {
             Section("Performance") {
                 Toggle("Show FPS Overlay", isOn: showPerformanceBinding)
                 
-                Stepper("Target FPS: \(targetFPSBinding.wrappedValue)", 
-                       value: targetFPSBinding, 
-                       in: 15...60, 
+                Stepper("Target FPS: \(targetFPSBinding.wrappedValue)",
+                       value: targetFPSBinding,
+                       in: 15...60,
                        step: 15)
             }
             

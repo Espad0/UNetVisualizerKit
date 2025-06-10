@@ -51,7 +51,7 @@ public final class UNetVisualizer: ObservableObject {
     @Published public private(set) var lastPrediction: UNetPrediction?
     @Published public private(set) var visualizationImage: CGImage?
     
-    private let model: UNetModel
+    private let model: UNetModelHandler
     private var configuration: Configuration
     private let performanceMonitor: PerformanceMonitor
     private let imageCache = ImageCache()
@@ -66,9 +66,9 @@ public final class UNetVisualizer: ObservableObject {
     /// Combine cancellables
     private var cancellables = Set<AnyCancellable>()
     
-    /// Initialize with a model URL
-    public init(modelURL: URL, configuration: Configuration = Configuration()) throws {
-        self.model = try UNetModel(modelURL: modelURL)
+    /// Initialize with an MLModel
+    public init(model: MLModel, configuration: Configuration = Configuration()) throws {
+        self.model = try UNetModelHandler(model: model)
         self.configuration = configuration
         self.performanceMonitor = PerformanceMonitor()
         
@@ -109,7 +109,7 @@ public final class UNetVisualizer: ObservableObject {
         }
         
         // Perform prediction
-        let prediction = try await model.predict(image)
+        let prediction = try await model.predict(image: image)
         lastPrediction = prediction
         
         // Update performance metrics

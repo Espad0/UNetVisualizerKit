@@ -46,10 +46,10 @@ final class ColorMapTests: XCTestCase {
     }
     
     func testCustomColorMap() {
-        let customColors: [(Float, RGBColor)] = [
-            (0.0, RGBColor(255, 0, 0)),    // Red at 0
-            (0.5, RGBColor(0, 255, 0)),    // Green at 0.5
-            (1.0, RGBColor(0, 0, 255))     // Blue at 1
+        let customColors: [(Float, UNetVisualizerKit.RGBColor)] = [
+            (0.0, UNetVisualizerKit.RGBColor(255, 0, 0)),    // Red at 0
+            (0.5, UNetVisualizerKit.RGBColor(0, 255, 0)),    // Green at 0.5
+            (1.0, UNetVisualizerKit.RGBColor(0, 0, 255))     // Blue at 1
         ]
         
         let colorMap = ColorMap.custom(customColors)
@@ -88,9 +88,9 @@ final class ColorMapTests: XCTestCase {
     }
     
     func testColorMapInterpolation() {
-        let colors: [(Float, RGBColor)] = [
-            (0.0, RGBColor(0, 0, 0)),
-            (1.0, RGBColor(255, 255, 255))
+        let colors: [(Float, UNetVisualizerKit.RGBColor)] = [
+            (0.0, UNetVisualizerKit.RGBColor(0, 0, 0)),
+            (1.0, UNetVisualizerKit.RGBColor(255, 255, 255))
         ]
         
         let colorMap = ColorMap.custom(colors)
@@ -109,9 +109,9 @@ final class ColorMapTests: XCTestCase {
     
     func testDivergingColorMap() {
         let diverging = ColorMap.diverging(
-            negativeColor: RGBColor(0, 0, 255),
-            neutralColor: RGBColor(255, 255, 255),
-            positiveColor: RGBColor(255, 0, 0)
+            negativeColor: UNetVisualizerKit.RGBColor(0, 0, 255),
+            neutralColor: UNetVisualizerKit.RGBColor(255, 255, 255),
+            positiveColor: UNetVisualizerKit.RGBColor(255, 0, 0)
         )
         
         // Test key points
@@ -124,9 +124,9 @@ final class ColorMapTests: XCTestCase {
     
     func testDiscreteColorMap() {
         let colors = [
-            RGBColor(255, 0, 0),
-            RGBColor(0, 255, 0),
-            RGBColor(0, 0, 255)
+            UNetVisualizerKit.RGBColor(255, 0, 0),
+            UNetVisualizerKit.RGBColor(0, 255, 0),
+            UNetVisualizerKit.RGBColor(0, 0, 255)
         ]
         
         let discrete = ColorMap.discrete(colors: colors)
@@ -150,9 +150,3 @@ final class ColorMapTests: XCTestCase {
     }
 }
 
-// MARK: - Helpers
-extension RGBColor: Equatable {
-    public static func == (lhs: RGBColor, rhs: RGBColor) -> Bool {
-        return lhs.r == rhs.r && lhs.g == rhs.g && lhs.b == rhs.b
-    }
-}
