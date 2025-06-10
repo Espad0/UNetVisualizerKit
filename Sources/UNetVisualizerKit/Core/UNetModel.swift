@@ -184,30 +184,43 @@ public class UNetModelHandler {
     
     /// Convert CGImage to MLMultiArray
     private func convertImageToMultiArray(_ image: CGImage) -> MLMultiArray? {
-        let width = image.width
-        let height = image.height
+        // Get model's expected input size
+        let expectedWidth = Int(inputSize.width)
+        let expectedHeight = Int(inputSize.height)
         
-        // Create MLMultiArray with shape [1, height, width, 3] for RGB
-        guard let multiArray = try? MLMultiArray(shape: [1, NSNumber(value: height), NSNumber(value: width), 3], dataType: .float32) else {
+        // Resize image if needed
+        let resizedImage: CGImage
+        if image.width != expectedWidth || image.height != expectedHeight {
+            guard let resized = resizeImage(image, to: CGSize(width: expectedWidth, height: expectedHeight)) else {
+                print("Failed to resize image to expected dimensions: \(expectedWidth)x\(expectedHeight)")
+                return nil
+            }
+            resizedImage = resized
+        } else {
+            resizedImage = image
+        }
+        
+        // Create MLMultiArray with expected shape [1, height, width, 3] for RGB
+        guard let multiArray = try? MLMultiArray(shape: [1, NSNumber(value: expectedHeight), NSNumber(value: expectedWidth), 3], dataType: .float32) else {
             return nil
         }
         
         // Convert image to pixel data
         guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
+              let context = CGContext(data: nil, width: expectedWidth, height: expectedHeight, bitsPerComponent: 8, bytesPerRow: expectedWidth * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
             return nil
         }
         
-        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        context.draw(resizedImage, in: CGRect(x: 0, y: 0, width: expectedWidth, height: expectedHeight))
         
         guard let pixelData = context.data?.assumingMemoryBound(to: UInt8.self) else {
             return nil
         }
         
         // Fill MLMultiArray
-        for y in 0..<height {
-            for x in 0..<width {
-                let pixelIndex = (y * width + x) * 4
+        for y in 0..<expectedHeight {
+            for x in 0..<expectedWidth {
+                let pixelIndex = (y * expectedWidth + x) * 4
                 let r = Float(pixelData[pixelIndex]) / 255.0
                 let g = Float(pixelData[pixelIndex + 1]) / 255.0
                 let b = Float(pixelData[pixelIndex + 2]) / 255.0
@@ -219,6 +232,22 @@ public class UNetModelHandler {
         }
         
         return multiArray
+    }
+    
+    /// Resize a CGImage to the specified size
+    private func resizeImage(_ image: CGImage, to size: CGSize) -> CGImage? {
+        let width = Int(size.width)
+        let height = Int(size.height)
+        
+        guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
+            return nil
+        }
+        
+        context.interpolationQuality = .high
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        return context.makeImage()
     }
     
     /// Process model output into structured prediction
