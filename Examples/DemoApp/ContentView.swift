@@ -10,17 +10,13 @@ struct ContentView: View {
     @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var showError = false
+    @State private var showFullScreenImage = false
     
     @StateObject private var visualizer: UNetVisualizer = {
         do {
-            // Option 1: Initialize with compiled model instance (compile-time loading)
-            // Uncomment and replace YourCompiledModel with your actual model class:
-            // let compiledModel = try YourCompiledModel(configuration: MLModelConfiguration())
-            // let modelHandler = UNetModelHandler(compiledModel: compiledModel)
             
-            // Option 2: Initialize with model name from bundle
             // Replace "YourModelName" with your actual model file name
-            let modelHandler = try UNetModelHandler(modelName: "YourModelName")
+            let modelHandler = try UNetModelHandler(modelName: "SegmentationModel")
             
             return UNetVisualizer(modelHandler: modelHandler)
         } catch {
@@ -99,6 +95,9 @@ struct ContentView: View {
                             .aspectRatio(contentMode: .fit)
                             .frame(maxHeight: 200)
                             .cornerRadius(8)
+                            .onTapGesture {
+                                showFullScreenImage = true
+                            }
                         
                         // Channel information
                         Text("Channels: \(result.prediction.channels.count)")
@@ -141,6 +140,11 @@ struct ContentView: View {
             Button("OK") { }
         } message: {
             Text(errorMessage ?? "An unknown error occurred")
+        }
+        .fullScreenCover(isPresented: $showFullScreenImage) {
+            if let result = processedResult {
+                FullScreenImageView(image: UIImage(cgImage: result.visualizedImage))
+            }
         }
     }
     
@@ -273,6 +277,108 @@ struct DemoSettingsView: View {
             get: { visualizer.currentConfiguration.targetFPS },
             set: { newValue in visualizer.configure { $0.targetFPS = newValue } }
         )
+    }
+}
+
+// MARK: - Full Screen Image View
+struct FullScreenImageView: View {
+    let image: UIImage
+    @Environment(\.dismiss) private var dismiss
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    @State private var dragOffset: CGSize = .zero
+    
+    var body: some View {
+        NavigationView {
+            GeometryReader { geometry in
+                ZStack {
+                    Color.black.ignoresSafeArea()
+                    
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .scaleEffect(scale)
+                        .offset(offset)
+                        .offset(y: dragOffset.height)
+                        .gesture(
+                            MagnificationGesture()
+                                .onChanged { value in
+                                    scale = lastScale * value
+                                }
+                                .onEnded { value in
+                                    lastScale = scale
+                                    withAnimation(.spring()) {
+                                        if scale < 1.0 {
+                                            scale = 1.0
+                                            lastScale = 1.0
+                                            offset = .zero
+                                            lastOffset = .zero
+                                        } else if scale > 5.0 {
+                                            scale = 5.0
+                                            lastScale = 5.0
+                                        }
+                                    }
+                                }
+                        )
+                        .gesture(
+                            scale > 1.0 ? DragGesture()
+                                .onChanged { value in
+                                    offset = CGSize(
+                                        width: lastOffset.width + value.translation.width,
+                                        height: lastOffset.height + value.translation.height
+                                    )
+                                }
+                                .onEnded { value in
+                                    lastOffset = offset
+                                } : nil
+                        )
+                        .onTapGesture(count: 2) {
+                            withAnimation(.spring()) {
+                                if scale > 1.0 {
+                                    scale = 1.0
+                                    lastScale = 1.0
+                                    offset = .zero
+                                    lastOffset = .zero
+                                } else {
+                                    scale = 2.0
+                                    lastScale = 2.0
+                                }
+                            }
+                        }
+                }
+            }
+            .background(Color.black)
+            .gesture(
+                DragGesture()
+                    .onChanged { value in
+                        if scale == 1.0 {
+                            dragOffset = value.translation
+                        }
+                    }
+                    .onEnded { value in
+                        if scale == 1.0 {
+                            if value.translation.height > 100 {
+                                dismiss()
+                            } else {
+                                withAnimation(.spring()) {
+                                    dragOffset = .zero
+                                }
+                            }
+                        }
+                    }
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
     }
 }
 
