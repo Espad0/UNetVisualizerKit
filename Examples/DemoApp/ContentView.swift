@@ -11,6 +11,7 @@ struct ContentView: View {
     @State private var errorMessage: String?
     @State private var showError = false
     @State private var showFullScreenImage = false
+    @State private var selectedChannelIndex: Int? = nil
     
     @StateObject private var visualizer: UNetVisualizer = {
         do {
@@ -28,51 +29,7 @@ struct ContentView: View {
         NavigationView {
             VStack(spacing: 20) {
                 // Image selection area
-                PhotosPicker(
-                    selection: $selectedItem,
-                    matching: .images,
-                    photoLibrary: .shared()
-                ) {
-                    if let selectedImage = selectedImage {
-                        Image(uiImage: selectedImage)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 300)
-                            .overlay(alignment: .topTrailing) {
-                                if isProcessing {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle())
-                                        .padding()
-                                        .background(.ultraThinMaterial)
-                                        .cornerRadius(8)
-                                        .padding()
-                                }
-                            }
-                    } else {
-                        VStack(spacing: 12) {
-                            Image(systemName: "photo.on.rectangle.angled")
-                                .font(.system(size: 60))
-                                .foregroundColor(.secondary)
-                            
-                            Text("Tap to select an image")
-                                .font(.headline)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 300)
-                        .background(Color.secondary.opacity(0.1))
-                        .cornerRadius(12)
-                    }
-                }
-                .onChange(of: selectedItem) { newItem in
-                    Task {
-                        if let data = try? await newItem?.loadTransferable(type: Data.self),
-                           let uiImage = UIImage(data: data) {
-                            selectedImage = uiImage
-                            await processImage(uiImage)
-                        }
-                    }
-                }
+                photoPicker
                 
                 // Visualization result
                 if let result = processedResult {
@@ -89,20 +46,59 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                         
-                        // Visualized image
-                        Image(uiImage: UIImage(cgImage: result.visualizedImage))
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxHeight: 200)
-                            .cornerRadius(8)
-                            .onTapGesture {
-                                showFullScreenImage = true
+                        // Channel heatmaps
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Channel Heatmaps (\(result.prediction.channels.count) channels)")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(result.prediction.channels, id: \.index) { channel in
+                                        VStack(spacing: 4) {
+                                            Text("Channel \(channel.index)")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            
+                                            if let heatmapImage = channel.toCGImage(colorMap: visualizer.currentConfiguration.colorMap) {
+                                                Image(uiImage: UIImage(cgImage: heatmapImage))
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(width: 150, height: 150)
+                                                    .cornerRadius(8)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 8)
+                                                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                                                    )
+                                                    .onTapGesture {
+                                                        selectedChannelIndex = channel.index
+                                                        showFullScreenImage = true
+                                                    }
+                                            }
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal, 4)
                             }
+                            .frame(height: 180)
+                        }
                         
-                        // Channel information
-                        Text("Channels: \(result.prediction.channels.count)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        // Original visualized image
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Combined Visualization")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Image(uiImage: UIImage(cgImage: result.visualizedImage))
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxHeight: 150)
+                                .cornerRadius(8)
+                                .onTapGesture {
+                                    selectedChannelIndex = nil
+                                    showFullScreenImage = true
+                                }
+                        }
                     }
                     .padding()
                     .background(Color.secondary.opacity(0.1))
@@ -143,7 +139,13 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $showFullScreenImage) {
             if let result = processedResult {
-                FullScreenImageView(image: UIImage(cgImage: result.visualizedImage))
+                if let channelIndex = selectedChannelIndex,
+                   let channel = result.prediction.channel(channelIndex),
+                   let heatmapImage = channel.toCGImage(colorMap: visualizer.currentConfiguration.colorMap) {
+                    FullScreenImageView(image: UIImage(cgImage: heatmapImage))
+                } else {
+                    FullScreenImageView(image: UIImage(cgImage: result.visualizedImage))
+                }
             }
         }
     }
@@ -195,6 +197,36 @@ struct ContentView: View {
     private func showError(message: String) {
         errorMessage = message
         showError = true
+    }
+    
+    // MARK: - Photo Picker Helpers
+    @ViewBuilder
+    private var photoPicker: some View {
+        PhotosPicker(
+            selection: $selectedItem,
+            matching: .images,
+            photoLibrary: .shared()
+        ) {
+            pickerContent
+        }
+        .onChange(of: selectedItem) { newItem in
+            Task {
+                if let data = try? await newItem?.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: data) {
+                    selectedImage = uiImage
+                    await processImage(uiImage)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pickerContent: some View {
+        if let selectedImage = selectedImage {
+            SelectedImageView(uiImage: selectedImage, isProcessing: isProcessing)
+        } else {
+            PlaceholderView()
+        }
     }
 }
 
@@ -379,6 +411,49 @@ struct FullScreenImageView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Helper Views
+
+/// Displays the selected image together with an optional overlay when processing.
+struct SelectedImageView: View {
+    let uiImage: UIImage
+    let isProcessing: Bool
+
+    var body: some View {
+        Image(uiImage: uiImage)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(maxHeight: 300)
+            .overlay(alignment: .topTrailing) {
+                if isProcessing {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .padding()
+                        .background(.ultraThinMaterial)
+                        .cornerRadius(8)
+                        .padding()
+                }
+            }
+    }
+}
+
+/// Placeholder that is shown when no image has been selected yet.
+struct PlaceholderView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 60))
+                .foregroundColor(.secondary)
+            Text("Tap to select an image")
+                .font(.headline)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(maxHeight: 300)
+        .background(Color.secondary.opacity(0.1))
+        .cornerRadius(12)
     }
 }
 
