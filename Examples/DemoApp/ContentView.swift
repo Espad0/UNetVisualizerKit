@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UNetVisualizerKit
 import CoreML
+import CoreGraphics
 
 struct ContentView: View {
     @State private var selectedItem: PhotosPickerItem?
@@ -81,6 +82,48 @@ struct ContentView: View {
                             }
                         }
                         
+                        // Channel overlays
+                        if let selectedImage = selectedImage, let cgImage = selectedImage.cgImage {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Channel Overlays")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                let gridColumns = [GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 12)]
+                                
+                                LazyVGrid(columns: gridColumns, spacing: 12) {
+                                    ForEach(result.prediction.channels, id: \.index) { channel in
+                                        VStack(spacing: 4) {
+                                            Text("Channel \(channel.index)")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            
+                                            if let overlayImage = createOverlayImage(
+                                                channel: channel,
+                                                originalImage: cgImage,
+                                                colorMap: visualizer.currentConfiguration.colorMap,
+                                                alpha: 0.5
+                                            ) {
+                                                Image(uiImage: UIImage(cgImage: overlayImage))
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(minWidth: 100, maxWidth: 150, minHeight: 100, maxHeight: 150)
+                                                    .cornerRadius(8)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 8)
+                                                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                                                    )
+                                                    .onTapGesture {
+                                                        selectedChannelIndex = channel.index + 1000 // Use offset to distinguish overlay from heatmap
+                                                        showFullScreenImage = true
+                                                    }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
                         // Original visualized image
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Combined Visualization")
@@ -137,10 +180,28 @@ struct ContentView: View {
         }
         .fullScreenCover(isPresented: $showFullScreenImage) {
             if let result = processedResult {
-                if let channelIndex = selectedChannelIndex,
-                   let channel = result.prediction.channel(channelIndex),
-                   let heatmapImage = channel.toCGImage(colorMap: visualizer.currentConfiguration.colorMap) {
-                    FullScreenImageView(image: UIImage(cgImage: heatmapImage))
+                if let channelIndex = selectedChannelIndex {
+                    if channelIndex >= 1000 {
+                        // Overlay image
+                        let actualIndex = channelIndex - 1000
+                        if let channel = result.prediction.channel(actualIndex),
+                           let selectedImage = selectedImage,
+                           let cgImage = selectedImage.cgImage,
+                           let overlayImage = createOverlayImage(
+                                channel: channel,
+                                originalImage: cgImage,
+                                colorMap: visualizer.currentConfiguration.colorMap,
+                                alpha: 0.5
+                           ) {
+                            FullScreenImageView(image: UIImage(cgImage: overlayImage))
+                        }
+                    } else {
+                        // Heatmap image
+                        if let channel = result.prediction.channel(channelIndex),
+                           let heatmapImage = channel.toCGImage(colorMap: visualizer.currentConfiguration.colorMap) {
+                            FullScreenImageView(image: UIImage(cgImage: heatmapImage))
+                        }
+                    }
                 } else {
                     FullScreenImageView(image: UIImage(cgImage: result.visualizedImage))
                 }
@@ -452,6 +513,38 @@ struct PlaceholderView: View {
         .frame(maxHeight: 300)
         .background(Color.secondary.opacity(0.1))
         .cornerRadius(12)
+    }
+}
+
+// MARK: - Overlay Helper
+extension ContentView {
+    /// Creates an overlay image by blending a channel heatmap with the original image
+    private func createOverlayImage(channel: ChannelData, originalImage: CGImage, colorMap: ColorMap, alpha: CGFloat = 0.5) -> CGImage? {
+        guard let heatmapImage = channel.toCGImage(colorMap: colorMap) else { return nil }
+        
+        let width = originalImage.width
+        let height = originalImage.height
+        
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+        
+        // Draw original image
+        context.draw(originalImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        // Draw heatmap with alpha
+        context.setAlpha(alpha)
+        context.draw(heatmapImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        return context.makeImage()
     }
 }
 
