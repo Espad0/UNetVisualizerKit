@@ -52,35 +52,33 @@ struct ContentView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                             
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
-                                    ForEach(result.prediction.channels, id: \.index) { channel in
-                                        VStack(spacing: 4) {
-                                            Text("Channel \(channel.index)")
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                            
-                                            if let heatmapImage = channel.toCGImage(colorMap: visualizer.currentConfiguration.colorMap) {
-                                                Image(uiImage: UIImage(cgImage: heatmapImage))
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fit)
-                                                    .frame(width: 150, height: 150)
-                                                    .cornerRadius(8)
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 8)
-                                                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                                                    )
-                                                    .onTapGesture {
-                                                        selectedChannelIndex = channel.index
-                                                        showFullScreenImage = true
-                                                    }
-                                            }
+                            let gridColumns = [GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 12)]
+                            
+                            LazyVGrid(columns: gridColumns, spacing: 12) {
+                                ForEach(result.prediction.channels, id: \.index) { channel in
+                                    VStack(spacing: 4) {
+                                        Text("Channel \(channel.index)")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                        
+                                        if let heatmapImage = channel.toCGImage(colorMap: visualizer.currentConfiguration.colorMap) {
+                                            Image(uiImage: UIImage(cgImage: heatmapImage))
+                                                .resizable()
+                                                .aspectRatio(contentMode: .fit)
+                                                .frame(minWidth: 100, maxWidth: 150, minHeight: 100, maxHeight: 150)
+                                                .cornerRadius(8)
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                                                )
+                                                .onTapGesture {
+                                                    selectedChannelIndex = channel.index
+                                                    showFullScreenImage = true
+                                                }
                                         }
                                     }
                                 }
-                                .padding(.horizontal, 4)
                             }
-                            .frame(height: 180)
                         }
                         
                         // Original visualized image
