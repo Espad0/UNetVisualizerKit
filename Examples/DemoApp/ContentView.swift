@@ -14,7 +14,6 @@ struct ContentView: View {
     @State private var showFullScreenImage = false
     @State private var selectedChannelIndex: Int? = nil
     @State private var imageCache: [String: UIImage] = [:]
-    @State private var fullScreenImageCache: UIImage? = nil
     
     @StateObject private var visualizer: UNetVisualizer = {
         do {
@@ -76,7 +75,6 @@ struct ContentView: View {
                                                 )
                                                 .onTapGesture {
                                                     prepareFullScreenImage(channelIndex: channel.index, isOverlay: false)
-                                                    selectedChannelIndex = channel.index
                                                     showFullScreenImage = true
                                                 }
                                         }
@@ -111,11 +109,10 @@ struct ContentView: View {
                                                         RoundedRectangle(cornerRadius: 8)
                                                             .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
                                                     )
-                                                    .onTapGesture {
-                                                        prepareFullScreenImage(channelIndex: channel.index, isOverlay: true)
-                                                        selectedChannelIndex = channel.index + 1000 // Use offset to distinguish overlay from heatmap
-                                                        showFullScreenImage = true
-                                                    }
+                                                                                                    .onTapGesture {
+                                                    prepareFullScreenImage(channelIndex: channel.index, isOverlay: true)
+                                                    showFullScreenImage = true
+                                                }
                                             }
                                         }
                                     }
@@ -136,7 +133,6 @@ struct ContentView: View {
                                 .cornerRadius(8)
                                 .onTapGesture {
                                     prepareFullScreenImage(channelIndex: nil, isOverlay: false)
-                                    selectedChannelIndex = nil
                                     showFullScreenImage = true
                                 }
                         }
@@ -179,8 +175,14 @@ struct ContentView: View {
             Text(errorMessage ?? "An unknown error occurred")
         }
         .fullScreenCover(isPresented: $showFullScreenImage) {
-            if let cachedImage = fullScreenImageCache {
-                FullScreenImageView(image: cachedImage)
+            if let result = processedResult {
+                FullScreenImageView(
+                    result: result,
+                    selectedImage: selectedImage,
+                    visualizer: visualizer,
+                    currentIndex: $selectedChannelIndex,
+                    isOverlayMode: (selectedChannelIndex ?? 0) >= 1000
+                )
             }
         }
     }
@@ -208,7 +210,6 @@ struct ContentView: View {
             
             // Clear cache when new result is processed
             imageCache.removeAll()
-            fullScreenImageCache = nil
             
             // Pre-generate commonly used images in background
             Task.detached(priority: .utility) {
@@ -285,28 +286,12 @@ struct ContentView: View {
         return uiImage
     }
     
-    /// Prepare full-screen image in advance to avoid lag when opening
+    /// Prepare full-screen image viewing by setting the appropriate index
     private func prepareFullScreenImage(channelIndex: Int?, isOverlay: Bool) {
-        guard let result = processedResult else { return }
-        
         if let channelIndex = channelIndex {
-            if isOverlay {
-                // Overlay image
-                let actualIndex = channelIndex
-                if let channel = result.prediction.channel(actualIndex),
-                   let selectedImage = selectedImage,
-                   let cgImage = selectedImage.cgImage {
-                    fullScreenImageCache = getCachedOverlayImage(for: channel, originalImage: cgImage, colorMap: visualizer.currentConfiguration.colorMap)
-                }
-            } else {
-                // Heatmap image
-                if let channel = result.prediction.channel(channelIndex) {
-                    fullScreenImageCache = getCachedHeatmapImage(for: channel, colorMap: visualizer.currentConfiguration.colorMap)
-                }
-            }
+            selectedChannelIndex = isOverlay ? channelIndex + 1000 : channelIndex
         } else {
-            // Combined visualization
-            fullScreenImageCache = UIImage(cgImage: result.visualizedImage)
+            selectedChannelIndex = nil
         }
     }
     
@@ -364,7 +349,6 @@ struct ContentView: View {
         } else {
             // No current result, clear everything
             imageCache.removeAll()
-            fullScreenImageCache = nil
         }
     }
     
@@ -487,14 +471,20 @@ struct DemoSettingsView: View {
 
 // MARK: - Full Screen Image View
 struct FullScreenImageView: View {
-    let image: UIImage
+    let result: VisualizationResult
+    let selectedImage: UIImage?
+    let visualizer: UNetVisualizer
+    @Binding var currentIndex: Int?
+    let isOverlayMode: Bool
+    
     @Environment(\.dismiss) private var dismiss
+    @State private var displayIndex: Int = 0
     @State private var scale: CGFloat = 1.0
     @State private var lastScale: CGFloat = 1.0
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
-    @State private var dragOffset: CGSize = .zero
-    @State private var isLoading = true
+    @State private var isLoading = false
+    @State private var imageCache: [Int: UIImage] = [:]
     
     var body: some View {
         NavigationView {
@@ -502,86 +492,84 @@ struct FullScreenImageView: View {
                 ZStack {
                     Color.black.ignoresSafeArea()
                     
+                    if currentIndex == nil {
+                        // Show combined visualization
+                        combinedVisualizationView(geometry: geometry)
+                    } else {
+                        // Show channel swipe view
+                        TabView(selection: $displayIndex) {
+                            ForEach(0..<result.prediction.channels.count, id: \.self) { index in
+                                channelImageView(for: index, geometry: geometry)
+                                    .tag(index)
+                            }
+                        }
+                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                        .ignoresSafeArea()
+                    }
+                    
+                    // Loading indicator
                     if isLoading {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(1.5)
-                    } else {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .scaleEffect(scale)
-                            .offset(offset)
-                            .offset(y: dragOffset.height)
-                            .gesture(
-                                MagnificationGesture()
-                                    .onChanged { value in
-                                        scale = lastScale * value
-                                    }
-                                    .onEnded { value in
-                                        lastScale = scale
-                                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                            if scale < 1.0 {
-                                                scale = 1.0
-                                                lastScale = 1.0
-                                                offset = .zero
-                                                lastOffset = .zero
-                                            } else if scale > 5.0 {
-                                                scale = 5.0
-                                                lastScale = 5.0
-                                            }
-                                        }
-                                    }
-                            )
-                            .gesture(
-                                scale > 1.0 ? DragGesture()
-                                    .onChanged { value in
-                                        offset = CGSize(
-                                            width: lastOffset.width + value.translation.width,
-                                            height: lastOffset.height + value.translation.height
-                                        )
-                                    }
-                                    .onEnded { value in
-                                        lastOffset = offset
-                                    } : nil
-                            )
-                            .onTapGesture(count: 2) {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                    if scale > 1.0 {
-                                        scale = 1.0
-                                        lastScale = 1.0
-                                        offset = .zero
-                                        lastOffset = .zero
-                                    } else {
-                                        scale = 2.0
-                                        lastScale = 2.0
-                                    }
+                    }
+                    
+                    // Channel info overlay (only show when viewing channels)
+                    if currentIndex != nil {
+                        VStack {
+                            HStack {
+                                Text("Channel \(displayIndex)")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(Color.black.opacity(0.6))
+                                    .cornerRadius(8)
+                                
+                                Spacer()
+                            }
+                            .padding()
+                            
+                            Spacer()
+                            
+                            // Page indicator
+                            HStack(spacing: 8) {
+                                ForEach(0..<min(result.prediction.channels.count, 10), id: \.self) { index in
+                                    Circle()
+                                        .fill(displayIndex == index ? Color.white : Color.white.opacity(0.5))
+                                        .frame(width: 8, height: 8)
+                                }
+                                
+                                if result.prediction.channels.count > 10 {
+                                    Text("\(displayIndex + 1)/\(result.prediction.channels.count)")
+                                        .font(.caption)
+                                        .foregroundColor(.white)
+                                        .padding(.leading, 4)
                                 }
                             }
+                            .padding()
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(8)
+                            .padding(.bottom, 20)
+                        }
                     }
                 }
             }
             .background(Color.black)
-            .gesture(
-                DragGesture()
-                    .onChanged { value in
-                        if scale == 1.0 {
-                            dragOffset = value.translation
-                        }
-                    }
-                    .onEnded { value in
-                        if scale == 1.0 {
-                            if value.translation.height > 100 {
-                                dismiss()
-                            } else {
-                                withAnimation(.spring()) {
-                                    dragOffset = .zero
-                                }
-                            }
-                        }
-                    }
-            )
             .navigationBarTitleDisplayMode(.inline)
+            .gesture(
+                // Swipe down to dismiss - only when not zoomed in
+                scale <= 1.0 ? DragGesture()
+                    .onEnded { value in
+                        // Only dismiss if swipe is primarily downward and has sufficient magnitude
+                        let verticalDistance = value.translation.y
+                        let horizontalDistance = abs(value.translation.x)
+                        
+                        if verticalDistance > 100 && verticalDistance > horizontalDistance * 2 {
+                            dismiss()
+                        }
+                    } : nil
+            )
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
@@ -591,15 +579,235 @@ struct FullScreenImageView: View {
                 }
             }
             .onAppear {
-                // Simulate loading briefly to give the user feedback that something is happening
-                // Then quickly show the image since it should already be cached
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        isLoading = false
-                    }
+                setupInitialIndex()
+                preloadAdjacentImages()
+            }
+            .onChange(of: displayIndex) { newIndex in
+                currentIndex = isOverlayMode ? newIndex + 1000 : newIndex
+                preloadAdjacentImages()
+                
+                // Reset zoom when changing channels
+                withAnimation(.easeOut(duration: 0.2)) {
+                    scale = 1.0
+                    lastScale = 1.0
+                    offset = .zero
+                    lastOffset = .zero
                 }
             }
         }
+    }
+    
+    @ViewBuilder
+    private func combinedVisualizationView(geometry: GeometryProxy) -> some View {
+        Image(uiImage: UIImage(cgImage: result.visualizedImage))
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .scaleEffect(scale)
+            .offset(offset)
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        scale = lastScale * value
+                    }
+                    .onEnded { value in
+                        lastScale = scale
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if scale < 1.0 {
+                                scale = 1.0
+                                lastScale = 1.0
+                                offset = .zero
+                                lastOffset = .zero
+                            } else if scale > 5.0 {
+                                scale = 5.0
+                                lastScale = 5.0
+                            }
+                        }
+                    }
+            )
+            .simultaneousGesture(
+                scale > 1.0 ? DragGesture()
+                    .onChanged { value in
+                        offset = CGSize(
+                            width: lastOffset.width + value.translation.width,
+                            height: lastOffset.height + value.translation.height
+                        )
+                    }
+                    .onEnded { value in
+                        lastOffset = offset
+                    } : nil
+            )
+            .onTapGesture(count: 2) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    if scale > 1.0 {
+                        scale = 1.0
+                        lastScale = 1.0
+                        offset = .zero
+                        lastOffset = .zero
+                    } else {
+                        scale = 2.0
+                        lastScale = 2.0
+                    }
+                }
+            }
+    }
+    
+    @ViewBuilder
+    private func channelImageView(for index: Int, geometry: GeometryProxy) -> some View {
+        ZStack {
+            Color.clear
+            
+            if let image = getImage(for: index) {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .scaleEffect(scale)
+                    .offset(offset)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                scale = lastScale * value
+                            }
+                            .onEnded { value in
+                                lastScale = scale
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    if scale < 1.0 {
+                                        scale = 1.0
+                                        lastScale = 1.0
+                                        offset = .zero
+                                        lastOffset = .zero
+                                    } else if scale > 5.0 {
+                                        scale = 5.0
+                                        lastScale = 5.0
+                                    }
+                                }
+                            }
+                    )
+                    .simultaneousGesture(
+                        scale > 1.0 ? DragGesture()
+                            .onChanged { value in
+                                offset = CGSize(
+                                    width: lastOffset.width + value.translation.width,
+                                    height: lastOffset.height + value.translation.height
+                                )
+                            }
+                            .onEnded { value in
+                                lastOffset = offset
+                            } : nil
+                    )
+                    .onTapGesture(count: 2) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            if scale > 1.0 {
+                                scale = 1.0
+                                lastScale = 1.0
+                                offset = .zero
+                                lastOffset = .zero
+                            } else {
+                                scale = 2.0
+                                lastScale = 2.0
+                            }
+                        }
+                    }
+                    .allowsHitTesting(scale > 1.0) // Only allow drag gestures when zoomed
+            } else {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .onAppear {
+                        loadImage(for: index)
+                    }
+            }
+        }
+    }
+    
+    private func setupInitialIndex() {
+        if let currentIndex = currentIndex {
+            displayIndex = isOverlayMode ? currentIndex - 1000 : currentIndex
+        } else {
+            displayIndex = 0
+        }
+    }
+    
+    private func getImage(for index: Int) -> UIImage? {
+        // Check cache first
+        if let cachedImage = imageCache[index] {
+            return cachedImage
+        }
+        
+        // Generate image
+        loadImage(for: index)
+        return nil
+    }
+    
+    private func loadImage(for index: Int) {
+        guard index >= 0 && index < result.prediction.channels.count else { return }
+        
+        let channel = result.prediction.channels[index]
+        
+        Task { @MainActor in
+            var image: UIImage?
+            
+            if isOverlayMode {
+                // Generate overlay image
+                if let selectedImage = selectedImage,
+                   let cgImage = selectedImage.cgImage,
+                   let overlayImage = createOverlayImage(
+                    channel: channel,
+                    originalImage: cgImage,
+                    colorMap: visualizer.currentConfiguration.colorMap,
+                    alpha: 0.5
+                   ) {
+                    image = UIImage(cgImage: overlayImage)
+                }
+            } else {
+                // Generate heatmap image
+                if let cgImage = channel.toCGImage(colorMap: visualizer.currentConfiguration.colorMap) {
+                    image = UIImage(cgImage: cgImage)
+                }
+            }
+            
+            if let image = image {
+                imageCache[index] = image
+            }
+        }
+    }
+    
+    private func preloadAdjacentImages() {
+        // Preload current, previous, and next images
+        let indicesToLoad = [displayIndex - 1, displayIndex, displayIndex + 1]
+        
+        for index in indicesToLoad {
+            if index >= 0 && index < result.prediction.channels.count && imageCache[index] == nil {
+                loadImage(for: index)
+            }
+        }
+    }
+    
+    /// Creates an overlay image by blending a channel heatmap with the original image
+    private func createOverlayImage(channel: ChannelData, originalImage: CGImage, colorMap: ColorMap, alpha: CGFloat = 0.5) -> CGImage? {
+        guard let heatmapImage = channel.toCGImage(colorMap: colorMap) else { return nil }
+        
+        let width = originalImage.width
+        let height = originalImage.height
+        
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return nil
+        }
+        
+        // Draw original image
+        context.draw(originalImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        // Draw heatmap with alpha
+        context.setAlpha(alpha)
+        context.draw(heatmapImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+        
+        return context.makeImage()
     }
 }
 
