@@ -40,20 +40,12 @@ struct ContentView: View {
                 
                 Spacer()
                 
-                // Action buttons
-                HStack(spacing: 16) {
-                    Button(action: processCurrentImage) {
-                        Label("Process", systemImage: "play.fill")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(selectedImage == nil || isProcessing)
-                    
-                    Button(action: shareResult) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(processedResult == nil)
+                // Action button
+                Button(action: retryImageSelection) {
+                    Label("Retry", systemImage: "arrow.clockwise")
                 }
+                .buttonStyle(.borderedProminent)
+                .disabled(isProcessing)
             }
             .padding()
             .navigationTitle("U-Net Visualizer Demo")
@@ -99,7 +91,6 @@ struct ContentView: View {
     @ViewBuilder
     private func performanceMetricsView(result: VisualizationResult) -> some View {
         HStack {
-            Label("\(String(format: "%.1f", result.performanceMetrics.currentFPS)) FPS", systemImage: "speedometer")
             Spacer()
             Label("\(String(format: "%.1f", result.prediction.inferenceTime))ms", systemImage: "timer")
         }
@@ -146,10 +137,6 @@ struct ContentView: View {
     @ViewBuilder
     private func combinedVisualizationSection(result: VisualizationResult) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Combined Visualization")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
             Image(uiImage: UIImage(cgImage: result.visualizedImage))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -221,6 +208,18 @@ struct ContentView: View {
         }
     }
     
+    private func retryImageSelection() {
+        // Reset ALL state to exactly match initial app state
+        selectedItem = nil
+        selectedImage = nil
+        processedResult = nil
+        isProcessing = false
+        errorMessage = nil
+        showError = false
+        selectedChannelIndex = nil
+        imageCache.removeAll()
+    }
+    
     @MainActor
     private func processImage(_ uiImage: UIImage) async {
         guard let cgImage = uiImage.cgImage else {
@@ -249,22 +248,6 @@ struct ContentView: View {
         isProcessing = false
     }
     
-    private func shareResult() {
-        guard let result = processedResult else { return }
-        
-        let image = UIImage(cgImage: result.visualizedImage)
-        
-        let activityVC = UIActivityViewController(
-            activityItems: [image, result.performanceMetrics.report],
-            applicationActivities: nil
-        )
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let rootVC = window.rootViewController {
-            rootVC.present(activityVC, animated: true)
-        }
-    }
     
     private func showError(message: String) {
         errorMessage = message
@@ -385,7 +368,7 @@ struct ContentView: View {
                 await processImage(uiImage)
             }
         } catch {
-            // Handle error silently or show error if needed
+            showError(message: "Failed to load selected image")
         }
     }
     
