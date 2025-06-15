@@ -35,111 +35,7 @@ struct ContentView: View {
                 
                 // Visualization result
                 if let result = processedResult {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Results")
-                            .font(.headline)
-                        
-                        // Performance metrics
-                        HStack {
-                            Label("\(String(format: "%.1f", result.performanceMetrics.currentFPS)) FPS", systemImage: "speedometer")
-                            Spacer()
-                            Label("\(String(format: "%.1f", result.prediction.inferenceTime))ms", systemImage: "timer")
-                        }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        
-                        // Channel heatmaps
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Channel Heatmaps (\(result.prediction.channels.count) channels)")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            
-                            let gridColumns = [GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 12)]
-                            
-                            LazyVGrid(columns: gridColumns, spacing: 12) {
-                                ForEach(result.prediction.channels, id: \.index) { channel in
-                                    VStack(spacing: 4) {
-                                        Text("Channel \(channel.index)")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                        
-                                        if let heatmapImage = getCachedHeatmapImage(for: channel, colorMap: visualizer.currentConfiguration.colorMap) {
-                                            Image(uiImage: heatmapImage)
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(minWidth: 100, maxWidth: 150, minHeight: 100, maxHeight: 150)
-                                                .cornerRadius(8)
-                                                .overlay(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                                                )
-                                                .onTapGesture {
-                                                    prepareFullScreenImage(channelIndex: channel.index, isOverlay: false)
-                                                    showFullScreenImage = true
-                                                }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Channel overlays
-                        if let selectedImage = selectedImage, let cgImage = selectedImage.cgImage {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text("Channel Overlays")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                
-                                let gridColumns = [GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 12)]
-                                
-                                LazyVGrid(columns: gridColumns, spacing: 12) {
-                                    ForEach(result.prediction.channels, id: \.index) { channel in
-                                        VStack(spacing: 4) {
-                                            Text("Channel \(channel.index)")
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                            
-                                            if let overlayImage = getCachedOverlayImage(for: channel, originalImage: cgImage, colorMap: visualizer.currentConfiguration.colorMap) {
-                                                Image(uiImage: overlayImage)
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fit)
-                                                    .frame(minWidth: 100, maxWidth: 150, minHeight: 100, maxHeight: 150)
-                                                    .cornerRadius(8)
-                                                    .overlay(
-                                                        RoundedRectangle(cornerRadius: 8)
-                                                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                                                    )
-                                                                                                    .onTapGesture {
-                                                    prepareFullScreenImage(channelIndex: channel.index, isOverlay: true)
-                                                    showFullScreenImage = true
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        
-                        // Original visualized image
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Combined Visualization")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Image(uiImage: UIImage(cgImage: result.visualizedImage))
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(maxHeight: 150)
-                                .cornerRadius(8)
-                                .onTapGesture {
-                                    prepareFullScreenImage(channelIndex: nil, isOverlay: false)
-                                    showFullScreenImage = true
-                                }
-                        }
-                    }
-                    .padding()
-                    .background(Color.secondary.opacity(0.1))
-                    .cornerRadius(12)
+                    visualizationResultView(result: result)
                 }
                 
                 Spacer()
@@ -185,6 +81,144 @@ struct ContentView: View {
                 )
             }
         }
+    }
+    
+    // MARK: - Extracted View Components
+    @ViewBuilder
+    private func visualizationResultView(result: VisualizationResult) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Results")
+                .font(.headline)
+            
+            performanceMetricsView(result: result)
+            
+            channelHeatmapsSection(result: result)
+            
+            channelOverlaysSection(result: result)
+            
+            combinedVisualizationSection(result: result)
+        }
+        .padding()
+        .background(Color.secondary.opacity(0.1))
+        .cornerRadius(12)
+    }
+    
+    @ViewBuilder
+    private func performanceMetricsView(result: VisualizationResult) -> some View {
+        HStack {
+            Label("\(String(format: "%.1f", result.performanceMetrics.currentFPS)) FPS", systemImage: "speedometer")
+            Spacer()
+            Label("\(String(format: "%.1f", result.prediction.inferenceTime))ms", systemImage: "timer")
+        }
+        .font(.caption)
+        .foregroundColor(.secondary)
+    }
+    
+    @ViewBuilder
+    private func channelHeatmapsSection(result: VisualizationResult) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Channel Heatmaps (\(result.prediction.channels.count) channels)")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            let gridColumns = [GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 12)]
+            
+            LazyVGrid(columns: gridColumns, spacing: 12) {
+                ForEach(result.prediction.channels, id: \.index) { channel in
+                    channelHeatmapItem(channel: channel)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func channelOverlaysSection(result: VisualizationResult) -> some View {
+        if let selectedImage = selectedImage, let cgImage = selectedImage.cgImage {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Channel Overlays")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                let gridColumns = [GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 12)]
+                
+                LazyVGrid(columns: gridColumns, spacing: 12) {
+                    ForEach(result.prediction.channels, id: \.index) { channel in
+                        channelOverlayItem(channel: channel, originalImage: cgImage)
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func combinedVisualizationSection(result: VisualizationResult) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Combined Visualization")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            Image(uiImage: UIImage(cgImage: result.visualizedImage))
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxHeight: 150)
+                .cornerRadius(8)
+                .onTapGesture {
+                    prepareFullScreenImage(channelIndex: nil, isOverlay: false)
+                    showFullScreenImage = true
+                }
+        }
+    }
+    
+    @ViewBuilder
+    private func channelHeatmapItem(channel: ChannelData) -> some View {
+        VStack(spacing: 4) {
+            Text("Channel \(channel.index)")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            
+            if let heatmapImage = getCachedHeatmapImage(for: channel, colorMap: visualizer.currentConfiguration.colorMap) {
+                channelImageView(
+                    uiImage: heatmapImage,
+                    onTap: {
+                        prepareFullScreenImage(channelIndex: channel.index, isOverlay: false)
+                        showFullScreenImage = true
+                    }
+                )
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func channelOverlayItem(channel: ChannelData, originalImage: CGImage) -> some View {
+        VStack(spacing: 4) {
+            Text("Channel \(channel.index)")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            
+            if let overlayImage = getCachedOverlayImage(for: channel, originalImage: originalImage, colorMap: visualizer.currentConfiguration.colorMap) {
+                channelImageView(
+                    uiImage: overlayImage,
+                    onTap: {
+                        prepareFullScreenImage(channelIndex: channel.index, isOverlay: true)
+                        showFullScreenImage = true
+                    }
+                )
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func channelImageView(uiImage: UIImage, onTap: @escaping () -> Void) -> some View {
+        Image(uiImage: uiImage)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(minWidth: 100, maxWidth: 150, minHeight: 100, maxHeight: 150)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+            )
+            .onTapGesture(perform: onTap)
     }
     
     private func processCurrentImage() {
@@ -298,38 +332,67 @@ struct ContentView: View {
     /// Pre-generate commonly accessed images in background for better performance
     @MainActor
     private func preGenerateImages(for result: VisualizationResult, originalImage: CGImage) async {
+        // Pre-generate heatmap images for first few channels
+        let channelsToPregenerate = min(result.prediction.channels.count, 4)
+        
         await withTaskGroup(of: Void.self) { group in
-            // Pre-generate heatmap images for first few channels
-            let channelsToPregenerate = min(result.prediction.channels.count, 4)
-            
             for i in 0..<channelsToPregenerate {
                 let channel = result.prediction.channels[i]
                 
                 // Pre-generate heatmap
                 group.addTask { @MainActor in
-                    let cacheKey = "heatmap_\(channel.index)_\(self.visualizer.currentConfiguration.colorMap.hashValue)"
-                    if self.imageCache[cacheKey] == nil {
-                        if let cgImage = channel.toCGImage(colorMap: self.visualizer.currentConfiguration.colorMap) {
-                            self.imageCache[cacheKey] = UIImage(cgImage: cgImage)
-                        }
-                    }
+                    await self.pregenerateHeatmap(for: channel)
                 }
                 
                 // Pre-generate overlay
                 group.addTask { @MainActor in
-                    let cacheKey = "overlay_\(channel.index)_\(self.visualizer.currentConfiguration.colorMap.hashValue)_\(originalImage.hashValue)"
-                    if self.imageCache[cacheKey] == nil {
-                        if let overlayImage = self.createOverlayImage(
-                            channel: channel,
-                            originalImage: originalImage,
-                            colorMap: self.visualizer.currentConfiguration.colorMap,
-                            alpha: 0.5
-                        ) {
-                            self.imageCache[cacheKey] = UIImage(cgImage: overlayImage)
-                        }
-                    }
+                    await self.pregenerateOverlay(for: channel, originalImage: originalImage)
                 }
             }
+        }
+    }
+    
+    @MainActor
+    private func pregenerateHeatmap(for channel: ChannelData) async {
+        let colorMap = visualizer.currentConfiguration.colorMap
+        let cacheKey = "heatmap_\(channel.index)_\(colorMap.hashValue)"
+        
+        guard imageCache[cacheKey] == nil else { return }
+        
+        if let cgImage = channel.toCGImage(colorMap: colorMap) {
+            imageCache[cacheKey] = UIImage(cgImage: cgImage)
+        }
+    }
+    
+    @MainActor
+    private func pregenerateOverlay(for channel: ChannelData, originalImage: CGImage) async {
+        let colorMap = visualizer.currentConfiguration.colorMap
+        let cacheKey = "overlay_\(channel.index)_\(colorMap.hashValue)_\(originalImage.hashValue)"
+        
+        guard imageCache[cacheKey] == nil else { return }
+        
+        if let overlayImage = createOverlayImage(
+            channel: channel,
+            originalImage: originalImage,
+            colorMap: colorMap,
+            alpha: 0.5
+        ) {
+            imageCache[cacheKey] = UIImage(cgImage: overlayImage)
+        }
+    }
+    
+    @MainActor
+    private func handlePhotoSelection(item: PhotosPickerItem?) async {
+        guard let item = item else { return }
+        
+        do {
+            if let data = try await item.loadTransferable(type: Data.self),
+               let uiImage = UIImage(data: data) {
+                selectedImage = uiImage
+                await processImage(uiImage)
+            }
+        } catch {
+            // Handle error silently or show error if needed
         }
     }
     
@@ -364,11 +427,7 @@ struct ContentView: View {
         }
         .onChange(of: selectedItem) { newItem in
             Task {
-                if let data = try? await newItem?.loadTransferable(type: Data.self),
-                   let uiImage = UIImage(data: data) {
-                    selectedImage = uiImage
-                    await processImage(uiImage)
-                }
+                await handlePhotoSelection(item: newItem)
             }
         }
         .onDisappear {
@@ -441,30 +500,46 @@ struct DemoSettingsView: View {
     }
     
     private var modeBinding: Binding<UNetVisualizer.ChannelVisualizationMode> {
-        Binding(
-            get: { visualizer.currentConfiguration.channelVisualization },
-            set: { newValue in visualizer.configure { $0.channelVisualization = newValue } }
+        return Binding(
+            get: { [weak visualizer] in
+                visualizer?.currentConfiguration.channelVisualization ?? .heatmap
+            },
+            set: { [weak visualizer] newValue in
+                visualizer?.configure { $0.channelVisualization = newValue }
+            }
         )
     }
     
     private var colorMapBinding: Binding<ColorMap> {
-        Binding(
-            get: { visualizer.currentConfiguration.colorMap },
-            set: { newValue in visualizer.configure { $0.colorMap = newValue } }
+        return Binding(
+            get: { [weak visualizer] in
+                visualizer?.currentConfiguration.colorMap ?? .viridis
+            },
+            set: { [weak visualizer] newValue in
+                visualizer?.configure { $0.colorMap = newValue }
+            }
         )
     }
     
     private var showPerformanceBinding: Binding<Bool> {
-        Binding(
-            get: { visualizer.currentConfiguration.showPerformanceOverlay },
-            set: { newValue in visualizer.configure { $0.showPerformanceOverlay = newValue } }
+        return Binding(
+            get: { [weak visualizer] in
+                visualizer?.currentConfiguration.showPerformanceOverlay ?? false
+            },
+            set: { [weak visualizer] newValue in
+                visualizer?.configure { $0.showPerformanceOverlay = newValue }
+            }
         )
     }
     
     private var targetFPSBinding: Binding<Int> {
-        Binding(
-            get: { visualizer.currentConfiguration.targetFPS },
-            set: { newValue in visualizer.configure { $0.targetFPS = newValue } }
+        return Binding(
+            get: { [weak visualizer] in
+                visualizer?.currentConfiguration.targetFPS ?? 30
+            },
+            set: { [weak visualizer] newValue in
+                visualizer?.configure { $0.targetFPS = newValue }
+            }
         )
     }
 }
@@ -492,66 +567,12 @@ struct FullScreenImageView: View {
                 ZStack {
                     Color.black.ignoresSafeArea()
                     
-                    if currentIndex == nil {
-                        // Show combined visualization
-                        combinedVisualizationView(geometry: geometry)
-                    } else {
-                        // Show channel swipe view
-                        TabView(selection: $displayIndex) {
-                            ForEach(0..<result.prediction.channels.count, id: \.self) { index in
-                                channelImageView(for: index, geometry: geometry)
-                                    .tag(index)
-                            }
-                        }
-                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                        .ignoresSafeArea()
-                    }
+                    mainContentView(geometry: geometry)
                     
-                    // Loading indicator
-                    if isLoading {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.5)
-                    }
+                    loadingOverlay
                     
-                    // Channel info overlay (only show when viewing channels)
                     if currentIndex != nil {
-                        VStack {
-                            HStack {
-                                Text("Channel \(displayIndex)")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Color.black.opacity(0.6))
-                                    .cornerRadius(8)
-                                
-                                Spacer()
-                            }
-                            .padding()
-                            
-                            Spacer()
-                            
-                            // Page indicator
-                            HStack(spacing: 8) {
-                                ForEach(0..<min(result.prediction.channels.count, 10), id: \.self) { index in
-                                    Circle()
-                                        .fill(displayIndex == index ? Color.white : Color.white.opacity(0.5))
-                                        .frame(width: 8, height: 8)
-                                }
-                                
-                                if result.prediction.channels.count > 10 {
-                                    Text("\(displayIndex + 1)/\(result.prediction.channels.count)")
-                                        .font(.caption)
-                                        .foregroundColor(.white)
-                                        .padding(.leading, 4)
-                                }
-                            }
-                            .padding()
-                            .background(Color.black.opacity(0.6))
-                            .cornerRadius(8)
-                            .padding(.bottom, 20)
-                        }
+                        channelInfoOverlay
                     }
                 }
             }
@@ -562,8 +583,8 @@ struct FullScreenImageView: View {
                 scale <= 1.0 ? DragGesture()
                     .onEnded { value in
                         // Only dismiss if swipe is primarily downward and has sufficient magnitude
-                        let verticalDistance = value.translation.y
-                        let horizontalDistance = abs(value.translation.x)
+                        let verticalDistance = value.translation.height
+                        let horizontalDistance = abs(value.translation.width)
                         
                         if verticalDistance > 100 && verticalDistance > horizontalDistance * 2 {
                             dismiss()
@@ -594,6 +615,84 @@ struct FullScreenImageView: View {
                     lastOffset = .zero
                 }
             }
+        }
+    }
+    
+    
+    @ViewBuilder
+    private var channelSwipeView: some View {
+        TabView(selection: $displayIndex) {
+            ForEach(0..<result.prediction.channels.count, id: \.self) { index in
+                GeometryReader { geometry in
+                    channelImageView(for: index, geometry: geometry)
+                }
+                .tag(index)
+            }
+        }
+        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+        .ignoresSafeArea()
+    }
+    
+    @ViewBuilder
+    private var loadingOverlay: some View {
+        if isLoading {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                .scaleEffect(1.5)
+        }
+    }
+    
+    @ViewBuilder
+    private var channelInfoOverlay: some View {
+        VStack {
+            HStack {
+                Text("Channel \(displayIndex)")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.6))
+                    .cornerRadius(8)
+                
+                Spacer()
+            }
+            .padding()
+            
+            Spacer()
+            
+            pageIndicator
+        }
+    }
+    
+    @ViewBuilder
+    private var pageIndicator: some View {
+        HStack(spacing: 8) {
+            let maxIndicators = min(result.prediction.channels.count, 10)
+            ForEach(0..<maxIndicators, id: \.self) { index in
+                Circle()
+                    .fill(displayIndex == index ? Color.white : Color.white.opacity(0.5))
+                    .frame(width: 8, height: 8)
+            }
+            
+            if result.prediction.channels.count > 10 {
+                Text("\(displayIndex + 1)/\(result.prediction.channels.count)")
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.leading, 4)
+            }
+        }
+        .padding()
+        .background(Color.black.opacity(0.6))
+        .cornerRadius(8)
+        .padding(.bottom, 20)
+    }
+    
+    @ViewBuilder
+    private func mainContentView(geometry: GeometryProxy) -> some View {
+        if currentIndex == nil {
+            combinedVisualizationView(geometry: geometry)
+        } else {
+            channelSwipeView
         }
     }
     
