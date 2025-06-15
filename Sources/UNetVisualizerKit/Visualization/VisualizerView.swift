@@ -6,7 +6,6 @@ import Vision
 public struct UNetVisualizerView: View {
     @StateObject private var visualizer: UNetVisualizer
     @State private var selectedChannel: Int = 0
-    @State private var showSettings: Bool = false
     
     private let model: MLModel
     
@@ -73,14 +72,6 @@ public struct UNetVisualizerView: View {
             }
         }
         .navigationTitle("U-Net Visualizer")
-        #if os(iOS)
-        .navigationBarItems(trailing: Button(action: { showSettings.toggle() }) {
-            Image(systemName: "gearshape")
-        })
-        #endif
-        .sheet(isPresented: $showSettings) {
-            SettingsView(visualizer: visualizer)
-        }
     }
 }
 
@@ -207,117 +198,3 @@ struct ControlsView: View {
     }
 }
 
-/// Settings view for configuration
-struct SettingsView: View {
-    @ObservedObject var visualizer: UNetVisualizer
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section("Performance") {
-                    Toggle("Show Performance Overlay", isOn: showPerformanceBinding)
-                    
-                    HStack {
-                        Text("Target FPS")
-                        Spacer()
-                        Picker("Target FPS", selection: targetFPSBinding) {
-                            Text("30").tag(30)
-                            Text("60").tag(60)
-                        }
-                        .pickerStyle(.segmented)
-                    }
-                }
-                
-                Section("Visualization") {
-                    HStack {
-                        Text("Overlay Opacity")
-                        Slider(value: overlayAlphaBinding, in: 0...1)
-                    }
-                }
-                
-                Section("Caching") {
-                    Toggle("Enable Caching", isOn: enableCachingBinding)
-                    
-                    if visualizer.currentConfiguration.enableCaching {
-                        HStack {
-                            Text("Max Cache Size")
-                            Spacer()
-                            Text("\(visualizer.currentConfiguration.maxCacheSize) MB")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                Section("Model Info") {
-                    HStack {
-                        Text("Input Size")
-                        Spacer()
-                        Text("\(Int(visualizer.modelInputSize.width))×\(Int(visualizer.modelInputSize.height))")
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    HStack {
-                        Text("Output Channels")
-                        Spacer()
-                        Text("\(visualizer.modelOutputChannels)")
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .navigationTitle("Settings")
-            #if !os(macOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
-            #if os(iOS)
-            .navigationBarItems(trailing: Button("Done") {
-                dismiss()
-            })
-            #endif
-        }
-    }
-    
-    private var showPerformanceBinding: Binding<Bool> {
-        Binding(
-            get: { visualizer.currentConfiguration.showPerformanceOverlay },
-            set: { value in
-                visualizer.configure { config in
-                    config.showPerformanceOverlay = value
-                }
-            }
-        )
-    }
-    
-    private var targetFPSBinding: Binding<Int> {
-        Binding(
-            get: { visualizer.currentConfiguration.targetFPS },
-            set: { value in
-                visualizer.configure { config in
-                    config.targetFPS = value
-                }
-            }
-        )
-    }
-    
-    private var overlayAlphaBinding: Binding<Float> {
-        Binding(
-            get: { visualizer.currentConfiguration.overlayAlpha },
-            set: { value in
-                visualizer.configure { config in
-                    config.overlayAlpha = value
-                }
-            }
-        )
-    }
-    
-    private var enableCachingBinding: Binding<Bool> {
-        Binding(
-            get: { visualizer.currentConfiguration.enableCaching },
-            set: { value in
-                visualizer.configure { config in
-                    config.enableCaching = value
-                }
-            }
-        )
-    }
-}

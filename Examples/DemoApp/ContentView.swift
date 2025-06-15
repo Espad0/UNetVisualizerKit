@@ -57,13 +57,6 @@ struct ContentView: View {
             }
             .padding()
             .navigationTitle("U-Net Visualizer Demo")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: DemoSettingsView(visualizer: visualizer)) {
-                        Image(systemName: "gearshape")
-                    }
-                }
-            }
         }
         .alert("Error", isPresented: $showError) {
             Button("OK") { }
@@ -446,103 +439,6 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Demo Settings View
-struct DemoSettingsView: View {
-    @ObservedObject var visualizer: UNetVisualizer
-    
-    var body: some View {
-        Form {
-            Section("Visualization") {
-                Picker("Mode", selection: modeBinding) {
-                    Text("Heatmap").tag(UNetVisualizer.ChannelVisualizationMode.heatmap)
-                    Text("Overlay").tag(UNetVisualizer.ChannelVisualizationMode.overlay)
-                    Text("Side by Side").tag(UNetVisualizer.ChannelVisualizationMode.sideBySide)
-                    Text("Grid").tag(UNetVisualizer.ChannelVisualizationMode.grid)
-                }
-                
-                Picker("Color Map", selection: colorMapBinding) {
-                    Text("Viridis").tag(ColorMap.viridis)
-                    Text("Plasma").tag(ColorMap.plasma)
-                    Text("Inferno").tag(ColorMap.inferno)
-                    Text("Magma").tag(ColorMap.magma)
-                    Text("Heatmap").tag(ColorMap.heatmap)
-                    Text("Rainbow").tag(ColorMap.rainbow)
-                }
-            }
-            
-            Section("Performance") {
-                Toggle("Show FPS Overlay", isOn: showPerformanceBinding)
-                
-                Stepper("Target FPS: \(targetFPSBinding.wrappedValue)",
-                       value: targetFPSBinding,
-                       in: 15...60,
-                       step: 15)
-            }
-            
-            Section("About") {
-                HStack {
-                    Text("Version")
-                    Spacer()
-                    Text("1.0.0")
-                        .foregroundColor(.secondary)
-                }
-                
-                HStack {
-                    Text("Framework")
-                    Spacer()
-                    Text("UNetVisualizerKit")
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .navigationTitle("Settings")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-    
-    private var modeBinding: Binding<UNetVisualizer.ChannelVisualizationMode> {
-        return Binding(
-            get: { [weak visualizer] in
-                visualizer?.currentConfiguration.channelVisualization ?? .heatmap
-            },
-            set: { [weak visualizer] newValue in
-                visualizer?.configure { $0.channelVisualization = newValue }
-            }
-        )
-    }
-    
-    private var colorMapBinding: Binding<ColorMap> {
-        return Binding(
-            get: { [weak visualizer] in
-                visualizer?.currentConfiguration.colorMap ?? .viridis
-            },
-            set: { [weak visualizer] newValue in
-                visualizer?.configure { $0.colorMap = newValue }
-            }
-        )
-    }
-    
-    private var showPerformanceBinding: Binding<Bool> {
-        return Binding(
-            get: { [weak visualizer] in
-                visualizer?.currentConfiguration.showPerformanceOverlay ?? false
-            },
-            set: { [weak visualizer] newValue in
-                visualizer?.configure { $0.showPerformanceOverlay = newValue }
-            }
-        )
-    }
-    
-    private var targetFPSBinding: Binding<Int> {
-        return Binding(
-            get: { [weak visualizer] in
-                visualizer?.currentConfiguration.targetFPS ?? 30
-            },
-            set: { [weak visualizer] newValue in
-                visualizer?.configure { $0.targetFPS = newValue }
-            }
-        )
-    }
-}
 
 // MARK: - Full Screen Image View
 struct FullScreenImageView: View {
