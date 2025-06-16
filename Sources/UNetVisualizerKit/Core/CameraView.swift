@@ -1,10 +1,9 @@
 import SwiftUI
 import AVFoundation
-import UNetVisualizerKit
 import CoreML
 import Vision
 
-struct CameraView: View {
+public struct CameraView: View {
     @StateObject private var camera = CameraManager()
     @State private var processedResult: VisualizationResult?
     @State private var isProcessing = false
@@ -15,11 +14,11 @@ struct CameraView: View {
     
     let visualizer: UNetVisualizer
     
-    init(visualizer: UNetVisualizer) {
+    public init(visualizer: UNetVisualizer) {
         self.visualizer = visualizer
     }
     
-    var body: some View {
+    public var body: some View {
         ZStack {
             // Camera preview
             CameraPreviewView(camera: camera)
@@ -81,7 +80,7 @@ struct CameraView: View {
             }
         }
         .onAppear {
-            let handler = CameraDelegateHandler { [weak camera] sampleBuffer in
+            let handler = CameraDelegateHandler { sampleBuffer in
                 handleCameraFrame(sampleBuffer)
             }
             delegateHandler = handler
@@ -172,7 +171,11 @@ class CameraManager: NSObject, ObservableObject {
         
         // Set video orientation
         if let connection = videoOutput.connection(with: .video) {
-            connection.videoRotationAngle = 90
+            if #available(iOS 17.0, *) {
+                connection.videoRotationAngle = 90
+            } else {
+                connection.videoOrientation = .portrait
+            }
         }
         
         session.commitConfiguration()
