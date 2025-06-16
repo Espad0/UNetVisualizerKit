@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var showFullScreenImage = false
     @State private var selectedChannelIndex: Int? = nil
     @State private var imageCache: [String: UIImage] = [:]
+    @State private var showCamera = false
     
     @StateObject private var visualizer: UNetVisualizer = {
         do {
@@ -30,22 +31,53 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 20) {
-                // Image selection area
-                photoPicker
-                
-                // Visualization result
-                if let result = processedResult {
-                    visualizationResultView(result: result)
+                // Image/Camera selection area
+                if selectedImage == nil && processedResult == nil {
+                    VStack(spacing: 20) {
+                        // Photo picker
+                        photoPicker
+                        
+                        Text("or")
+                            .foregroundColor(.secondary)
+                        
+                        // Camera button
+                        Button(action: {
+                            showCamera = true
+                        }) {
+                            VStack(spacing: 12) {
+                                Image(systemName: "camera.fill")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.secondary)
+                                Text("Tap to start camera")
+                                    .font(.headline)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 150)
+                            .background(Color.secondary.opacity(0.1))
+                            .cornerRadius(12)
+                        }
+                    }
+                } else {
+                    // Image selection area
+                    photoPicker
+                    
+                    // Visualization result
+                    if let result = processedResult {
+                        visualizationResultView(result: result)
+                    }
                 }
                 
                 Spacer()
                 
                 // Action button
-                Button(action: retryImageSelection) {
-                    Label("Retry", systemImage: "arrow.clockwise")
+                if selectedImage != nil || processedResult != nil {
+                    Button(action: retryImageSelection) {
+                        Label("Retry", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isProcessing)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isProcessing)
             }
             .padding()
             .navigationTitle("U-Net Visualizer Demo")
@@ -65,6 +97,9 @@ struct ContentView: View {
                     isOverlayMode: (selectedChannelIndex ?? 0) >= 1000
                 )
             }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraView(visualizer: visualizer)
         }
     }
     
