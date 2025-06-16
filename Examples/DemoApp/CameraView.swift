@@ -8,7 +8,6 @@ struct CameraView: View {
     @StateObject private var camera = CameraManager()
     @State private var processedResult: VisualizationResult?
     @State private var isProcessing = false
-    @State private var showProcessedView = false
     @State private var delegateHandler: CameraDelegateHandler?
     @State private var lastCapturedImage: CGImage?
     @State private var imageCache: [String: UIImage] = [:]
@@ -47,18 +46,6 @@ struct CameraView: View {
                     .padding()
                     
                     Spacer()
-                    
-                    // Toggle camera
-                    Button(action: {
-                        camera.toggleCamera()
-                    }) {
-                        Image(systemName: "camera.rotate")
-                            .font(.title2)
-                            .foregroundColor(.white)
-                            .padding(12)
-                            .background(Circle().fill(Color.black.opacity(0.5)))
-                    }
-                    .padding()
                 }
                 
                 Spacer()
@@ -88,17 +75,6 @@ struct CameraView: View {
                     }
                     
                     Spacer()
-                    
-                    // Capture button (to show detailed view)
-                    Button(action: {
-                        showProcessedView = true
-                    }) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
-                    }
-                    .disabled(processedResult == nil)
-                    .opacity(processedResult == nil ? 0.5 : 1.0)
                 }
                 .padding()
                 .padding(.bottom)
@@ -114,11 +90,6 @@ struct CameraView: View {
         }
         .onDisappear {
             camera.stopSession()
-        }
-        .sheet(isPresented: $showProcessedView) {
-            if let result = processedResult {
-                ProcessedResultView(result: result, visualizer: visualizer)
-            }
         }
     }
 }
@@ -231,38 +202,6 @@ class CameraManager: NSObject, ObservableObject {
         isPaused = false
     }
     
-    func toggleCamera() {
-        sessionQueue.async { [weak self] in
-            guard let self = self else { return }
-            
-            self.session.beginConfiguration()
-            
-            // Remove current input
-            if let currentInput = self.session.inputs.first as? AVCaptureDeviceInput {
-                self.session.removeInput(currentInput)
-            }
-            
-            // Toggle position
-            self.currentCameraPosition = self.currentCameraPosition == .back ? .front : .back
-            
-            // Add new input
-            guard let camera = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: self.currentCameraPosition) else {
-                self.session.commitConfiguration()
-                return
-            }
-            
-            do {
-                let input = try AVCaptureDeviceInput(device: camera)
-                if self.session.canAddInput(input) {
-                    self.session.addInput(input)
-                }
-            } catch {
-                print("Failed to switch camera: \(error)")
-            }
-            
-            self.session.commitConfiguration()
-        }
-    }
 }
 
 // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate
@@ -351,9 +290,6 @@ extension CameraView {
                     if let cgImage = lastCapturedImage {
                         channelOverlaysSection(result: result, originalImage: cgImage)
                     }
-                    
-                    // Combined visualization
-                    combinedVisualizationSection(result: result)
                 }
                 .padding(.bottom, 100) // Space for bottom controls
             }
@@ -407,29 +343,6 @@ extension CameraView {
         }
     }
     
-    @ViewBuilder
-    private func combinedVisualizationSection(result: VisualizationResult) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("Combined Visualization")
-                .font(.caption)
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.black.opacity(0.6))
-                .cornerRadius(4)
-            
-            Image(uiImage: UIImage(cgImage: result.visualizedImage))
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(maxHeight: 100)
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.white.opacity(0.3), lineWidth: 1)
-                )
-        }
-        .padding(.horizontal)
-    }
     
     @ViewBuilder
     private func channelHeatmapItem(channel: ChannelData) -> some View {
@@ -565,73 +478,6 @@ struct CameraPreviewView: UIViewRepresentable {
     func updateUIView(_ uiView: PreviewView, context: Context) {}
 }
 
-// MARK: - Processed Result View
-struct ProcessedResultView: View {
-    let result: VisualizationResult
-    let visualizer: UNetVisualizer
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Combined visualization
-                    Image(uiImage: UIImage(cgImage: result.visualizedImage))
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .cornerRadius(12)
-                    
-                    // Performance metrics
-                    HStack {
-                        Label("\(String(format: "%.1f", result.prediction.inferenceTime))ms", systemImage: "timer")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                    .padding(.horizontal)
-                    
-                    // Channel heatmaps
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Channel Heatmaps")
-                            .font(.headline)
-                            .padding(.horizontal)
-                        
-                        let gridColumns = [GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 12)]
-                        
-                        LazyVGrid(columns: gridColumns, spacing: 12) {
-                            ForEach(result.prediction.channels, id: \.index) { channel in
-                                VStack(spacing: 4) {
-                                    Text("Channel \(channel.index)")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                    
-                                    if let cgImage = channel.toCGImage(colorMap: visualizer.currentConfiguration.colorMap) {
-                                        Image(uiImage: UIImage(cgImage: cgImage))
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fit)
-                                            .frame(minWidth: 100, maxWidth: 150, minHeight: 100, maxHeight: 150)
-                                            .cornerRadius(8)
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-                .padding(.vertical)
-            }
-            .navigationTitle("Captured Result")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
 
 // MARK: - CVPixelBuffer Extension
 extension CVPixelBuffer {
