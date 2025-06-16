@@ -269,7 +269,7 @@ extension CameraView {
             Spacer()
             
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     // Performance metrics
                     HStack {
                         Spacer()
@@ -310,7 +310,7 @@ extension CameraView {
                 .padding(.horizontal)
             
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 16) {
                     ForEach(result.prediction.channels, id: \.index) { channel in
                         channelHeatmapItem(channel: channel)
                     }
@@ -333,7 +333,7 @@ extension CameraView {
                 .padding(.horizontal)
             
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 16) {
                     ForEach(result.prediction.channels, id: \.index) { channel in
                         channelOverlayItem(channel: channel, originalImage: originalImage)
                     }
@@ -348,18 +348,19 @@ extension CameraView {
     private func channelHeatmapItem(channel: ChannelData) -> some View {
         VStack(spacing: 2) {
             Text("Ch \(channel.index)")
-                .font(.caption2)
+                .font(.caption)
+                .fontWeight(.medium)
                 .foregroundColor(.white)
             
             if let heatmapImage = getCachedHeatmapImage(for: channel, colorMap: visualizer.currentConfiguration.colorMap) {
                 Image(uiImage: heatmapImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 60)
-                    .cornerRadius(4)
+                    .frame(width: 120, height: 120)
+                    .cornerRadius(8)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
                     )
             }
         }
@@ -369,18 +370,19 @@ extension CameraView {
     private func channelOverlayItem(channel: ChannelData, originalImage: CGImage) -> some View {
         VStack(spacing: 2) {
             Text("Ch \(channel.index)")
-                .font(.caption2)
+                .font(.caption)
+                .fontWeight(.medium)
                 .foregroundColor(.white)
             
             if let overlayImage = getCachedOverlayImage(for: channel, originalImage: originalImage, colorMap: visualizer.currentConfiguration.colorMap) {
                 Image(uiImage: overlayImage)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 60, height: 60)
-                    .cornerRadius(4)
+                    .frame(width: 120, height: 120)
+                    .cornerRadius(8)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.white.opacity(0.3), lineWidth: 0.5)
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.white.opacity(0.3), lineWidth: 1)
                     )
             }
         }
