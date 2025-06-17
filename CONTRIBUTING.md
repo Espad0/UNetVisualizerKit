@@ -40,27 +40,6 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 5. Make sure your code follows the existing code style
 6. Issue that pull request!
 
-## Development Process
-
-### Setting Up Your Development Environment
-
-1. Clone the repository:
-```bash
-git clone https://github.com/andrejnesterov/UNetVisualizerKit.git
-cd UNetVisualizerKit
-```
-
-2. Open in Xcode:
-```bash
-open Package.swift
-```
-
-3. Build and test:
-```bash
-swift build
-swift test
-```
-
 ### Code Style
 
 * Use Swift's standard naming conventions
@@ -81,13 +60,6 @@ public func process(_ image: CGImage) async throws -> VisualizationResult {
 }
 ```
 
-### Testing
-
-* Write unit tests for new functionality
-* Maintain or improve code coverage
-* Test on multiple device types when possible
-* Include performance tests for critical paths
-
 ### Documentation
 
 * Update README.md if you change functionality
@@ -98,15 +70,22 @@ public func process(_ image: CGImage) async throws -> VisualizationResult {
 ## Project Structure
 
 ```
-UNetVisualizerKit/
-├── Sources/
-│   └── UNetVisualizerKit/
-│       ├── Core/          # Core functionality
-│       ├── Visualization/ # Visualization components
-│       └── Performance/   # Performance monitoring
-├── Tests/                 # Test files
-├── Examples/             # Example projects
-└── Documentation/        # Documentation files
+Sources/UNetVisualizerKit/
+├── Core/                    # 🧠 Neural Network & Processing Engine
+│   ├── UNetModel.swift     # Core ML model wrapper with prediction pipeline
+│   ├── UNetVisualizer.swift # Main visualizer class with processing logic
+│   └── CameraView.swift    # Real-time camera capture integration
+├── Visualization/           # 🎨 Rendering & Display Engine
+│   ├── VisualizerView.swift # Main visualization view component
+│   ├── ColorMap.swift      # Color mapping utilities (Viridis, Grayscale, etc.)
+│   ├── DemoVisualizationView.swift # Complete demo UI with photo picker
+│   ├── FullScreenImageView.swift   # Full-screen image viewing component
+│   └── HelperViews.swift   # UI helper components (PlaceholderView, etc.)
+├── Performance/             # ⚡ Monitoring & Optimization
+│   ├── PerformanceMonitor.swift # FPS tracking, latency measurement
+│   └── ImageCache.swift    # Memory-efficient image caching system
+├── Models/                  # 📋 Data Structures & Protocols
+└── Extensions/              # 🔧 Helper Extensions
 ```
 
 ## Commit Messages

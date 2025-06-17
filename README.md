@@ -64,10 +64,14 @@ UNetVisualizerKit follows a modular architecture designed for performance, maint
 Sources/UNetVisualizerKit/
 ├── Core/                    # 🧠 Neural Network & Processing Engine
 │   ├── UNetModel.swift     # Core ML model wrapper with prediction pipeline
+│   ├── UNetVisualizer.swift # Main visualizer class with processing logic
 │   └── CameraView.swift    # Real-time camera capture integration
 ├── Visualization/           # 🎨 Rendering & Display Engine
 │   ├── VisualizerView.swift # Main visualization view component
-│   └── ColorMap.swift      # Color mapping utilities (Viridis, Grayscale, etc.)
+│   ├── ColorMap.swift      # Color mapping utilities (Viridis, Grayscale, etc.)
+│   ├── DemoVisualizationView.swift # Complete demo UI with photo picker
+│   ├── FullScreenImageView.swift   # Full-screen image viewing component
+│   └── HelperViews.swift   # UI helper components (PlaceholderView, etc.)
 ├── Performance/             # ⚡ Monitoring & Optimization
 │   ├── PerformanceMonitor.swift # FPS tracking, latency measurement
 │   └── ImageCache.swift    # Memory-efficient image caching system
@@ -85,58 +89,6 @@ Input Source → Model Handler → Visualizer → UI Components
 🖼️ Images      📊 Channels    🔄 Cache      📈 Metrics
 ```
 
-### 🎯 Key Classes & Responsibilities
-
-#### **UNetModelHandler** - Neural Network Interface
-- **Purpose**: Abstracts Core ML model loading and prediction
-- **Features**: Automatic input preprocessing, output channel extraction, async prediction
-- **Input**: CGImage, MLMultiArray
-- **Output**: UNetPrediction with channel data and metrics
-
-#### **UNetVisualizer** - Main Orchestrator
-- **Purpose**: Coordinates model processing with visualization rendering
-- **Features**: Real-time processing, configurable visualization modes, performance monitoring
-- **Modes**: Heatmap, Overlay, Side-by-side, Grid, Animated
-
-#### **DemoVisualizationView** - Complete UI Demo
-- **Purpose**: Production-ready UI showcasing all framework capabilities
-- **Features**: Photo picker, camera integration, channel visualization, performance metrics
-- **Optimizations**: Image caching, background processing, memory management
-
-#### **PerformanceMonitor** - Real-time Metrics
-- **Purpose**: Tracks inference performance and system resource usage
-- **Metrics**: FPS, inference latency, memory usage, energy impact
-
-#### **ColorMap** - Visualization Styling
-- **Purpose**: Provides scientific-grade color mapping for neural network outputs
-- **Maps**: Viridis, Plasma, Inferno, Grayscale, Custom gradients
-
-### 🏛️ Design Principles
-
-- **🔌 Pluggable**: Swap models, visualizations, and UI components independently
-- **⚡ Performance-First**: Async processing, intelligent caching, memory optimization
-- **🧪 Production-Ready**: Comprehensive error handling, resource management, platform compatibility
-- **📱 SwiftUI Native**: Modern declarative UI with Combine integration
-- **🔍 Developer-Friendly**: Rich debugging information, performance insights, extensible APIs
-
-
-## 📖 Documentation
-
-### For Junior Developers
-- [Getting Started Guide](Documentation/Tutorials/GettingStarted.md)
-- [Understanding U-Net Models](Documentation/Tutorials/UnderstandingUNet.md)
-- [Basic Integration Tutorial](Documentation/Tutorials/BasicIntegration.md)
-
-### For Middle Developers
-- [Architecture Overview](Documentation/Architecture/Overview.md)
-- [Performance Optimization](Documentation/Architecture/Performance.md)
-- [Custom Visualizations](Documentation/Tutorials/CustomVisualizations.md)
-
-### For Senior Developers
-- [API Reference](Documentation/API/Reference.md)
-- [Enterprise Integration](Documentation/Architecture/Enterprise.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
-
 ## 🔧 Requirements
 
 - iOS 15.0+
@@ -144,16 +96,9 @@ Input Source → Model Handler → Visualizer → UI Components
 - Swift 5.9+
 - Core ML compatible device
 
-## 💡 Use Cases
-
-- **Medical Imaging** - Visualize segmentation masks
-- **Autonomous Vehicles** - Debug perception models
-- **AR Applications** - Real-time segmentation
-- **Research** - Model evaluation and debugging
-
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+Contributions are welcomed! Please see the [Contributing Guidelines](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
