@@ -17,75 +17,108 @@ Computer vision developers often need to test their neural nets on devices: how 
 
 ## 🚀 Quick Start
 
+Getting started is incredibly simple - just 3 steps:
+
+### 1. Add the Package
+In Xcode: **File → Add Package Dependencies** → `https://github.com/andrejnesterov/UNetVisualizerKit`
+
+### 2. Copy the Demo ContentView
+Copy `Examples/DemoApp/ContentView.swift` into your project:
+
 ```swift
+import SwiftUI
 import UNetVisualizerKit
 
-// Initialize with your Core ML model
-let model = try MLModel(contentsOf: modelURL)
-let visualizer = try UNetVisualizer(model: model)
-
-// Configure visualization
-visualizer.configure {
-    $0.channelVisualization = .heatmap
-    $0.showPerformanceOverlay = true
-    $0.targetFPS = 30
+struct ContentView: View {
+    var body: some View {
+        DemoVisualizationView(modelHandler: createModelHandler())
+    }
+    
+    private func createModelHandler() -> UNetModelHandler {
+        do {
+            let modelHandler = try UNetModelHandler(modelName: "YourModelName")
+            return modelHandler
+        } catch {
+            fatalError("Failed to load model: \(error)")
+        }
+    }
 }
-
-// Process and visualize
-let result = try await visualizer.process(image)
-print("Inference time: \(result.prediction.inferenceTime)ms")
 ```
 
-## 📱 Features
+### 3. Replace Model Name & Run
+Change `"YourModelName"` to your Core ML model name → Build & Run!
 
-### Core Capabilities
-- ✅ **Core ML Integration** - Seamless integration with .mlmodel files
-- ✅ **Real-time Processing** - Optimized for 30+ FPS on modern devices
-- ✅ **Channel Visualization** - Individual channel inspection with multiple color maps
-- ✅ **Performance Monitoring** - FPS counter, inference time, memory usage
-- ✅ **SwiftUI & UIKit Support** - Works with both UI frameworks
+You'll get a complete visualization app with photo picker, camera, real-time processing, and performance metrics.
 
-### Visualization Modes
-- 🎨 **Heatmaps** - Customizable color gradients
-- 📊 **Overlays** - Blend predictions with original image
-- 📈 **Histograms** - Distribution analysis per channel
-- 🔍 **Split Views** - Side-by-side comparisons
+## 📱 Examples
+
+TODO: provide image examples
 
 ## 🏗 Architecture
 
+UNetVisualizerKit follows a modular architecture designed for performance, maintainability, and ease of use. The framework is organized into five main layers:
+
+### 📦 Core Components
+
 ```
-UNetVisualizerKit/
-├── Core/               # Model management and processing
-├── Visualization/      # Rendering and display components
-├── Performance/        # Metrics and monitoring
-├── Extensions/         # UIImage, CVPixelBuffer helpers
-└── Models/            # Data structures and protocols
-```
-
-## 📊 Performance Benchmarks
-
-| Device | Model Size | Inference Time | FPS |
-|--------|------------|----------------|-----|
-| iPhone 15 Pro | 256×256 | 12ms | 60+ |
-| iPhone 13 | 256×256 | 18ms | 45+ |
-| iPhone 11 | 256×256 | 28ms | 30+ |
-| iPad Pro M2 | 512×512 | 15ms | 60+ |
-
-## 🛠 Installation
-
-### Swift Package Manager
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/andrejnesterov/UNetVisualizerKit.git", from: "1.0.0")
-]
+Sources/UNetVisualizerKit/
+├── Core/                    # 🧠 Neural Network & Processing Engine
+│   ├── UNetModel.swift     # Core ML model wrapper with prediction pipeline
+│   └── CameraView.swift    # Real-time camera capture integration
+├── Visualization/           # 🎨 Rendering & Display Engine
+│   ├── VisualizerView.swift # Main visualization view component
+│   └── ColorMap.swift      # Color mapping utilities (Viridis, Grayscale, etc.)
+├── Performance/             # ⚡ Monitoring & Optimization
+│   ├── PerformanceMonitor.swift # FPS tracking, latency measurement
+│   └── ImageCache.swift    # Memory-efficient image caching system
+├── Models/                  # 📋 Data Structures & Protocols
+└── Extensions/              # 🔧 Helper Extensions
 ```
 
-### CocoaPods
+### 🔄 Data Flow Architecture
 
-```ruby
-pod 'UNetVisualizerKit', '~> 1.0'
 ```
+Input Source → Model Handler → Visualizer → UI Components
+     ↓              ↓             ↓           ↓
+📷 Camera      🧠 UNetModel   🎨 Renderer   📱 SwiftUI
+📷 Photos      ⚡ Inference   🎯 ColorMap   🖼️ Views
+🖼️ Images      📊 Channels    🔄 Cache      📈 Metrics
+```
+
+### 🎯 Key Classes & Responsibilities
+
+#### **UNetModelHandler** - Neural Network Interface
+- **Purpose**: Abstracts Core ML model loading and prediction
+- **Features**: Automatic input preprocessing, output channel extraction, async prediction
+- **Input**: CGImage, MLMultiArray
+- **Output**: UNetPrediction with channel data and metrics
+
+#### **UNetVisualizer** - Main Orchestrator
+- **Purpose**: Coordinates model processing with visualization rendering
+- **Features**: Real-time processing, configurable visualization modes, performance monitoring
+- **Modes**: Heatmap, Overlay, Side-by-side, Grid, Animated
+
+#### **DemoVisualizationView** - Complete UI Demo
+- **Purpose**: Production-ready UI showcasing all framework capabilities
+- **Features**: Photo picker, camera integration, channel visualization, performance metrics
+- **Optimizations**: Image caching, background processing, memory management
+
+#### **PerformanceMonitor** - Real-time Metrics
+- **Purpose**: Tracks inference performance and system resource usage
+- **Metrics**: FPS, inference latency, memory usage, energy impact
+
+#### **ColorMap** - Visualization Styling
+- **Purpose**: Provides scientific-grade color mapping for neural network outputs
+- **Maps**: Viridis, Plasma, Inferno, Grayscale, Custom gradients
+
+### 🏛️ Design Principles
+
+- **🔌 Pluggable**: Swap models, visualizations, and UI components independently
+- **⚡ Performance-First**: Async processing, intelligent caching, memory optimization
+- **🧪 Production-Ready**: Comprehensive error handling, resource management, platform compatibility
+- **📱 SwiftUI Native**: Modern declarative UI with Combine integration
+- **🔍 Developer-Friendly**: Rich debugging information, performance insights, extensible APIs
+
 
 ## 📖 Documentation
 
