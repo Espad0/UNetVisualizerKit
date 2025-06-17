@@ -46,7 +46,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/UNetVisualizerKit.git
+git clone https://github.com/andrejnesterov/UNetVisualizerKit.git
 cd UNetVisualizerKit
 ```
 

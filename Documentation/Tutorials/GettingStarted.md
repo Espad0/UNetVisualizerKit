@@ -14,7 +14,7 @@ Welcome to UNetVisualizerKit! This guide will help you integrate U-Net visualiza
 ### Swift Package Manager
 
 1. In Xcode, go to **File → Add Package Dependencies**
-2. Enter the repository URL: `https://github.com/yourusername/UNetVisualizerKit`
+2. Enter the repository URL: `https://github.com/andrejnesterov/UNetVisualizerKit`
 3. Click **Add Package**
 
 ### CocoaPods
@@ -45,7 +45,8 @@ import UNetVisualizerKit
 let modelURL = Bundle.main.url(forResource: "MyUNetModel", withExtension: "mlmodel")!
 
 do {
-    let visualizer = try UNetVisualizer(modelURL: modelURL)
+    let modelHandler = try UNetModelHandler(modelURL: modelURL)
+    let visualizer = UNetVisualizer(modelHandler: modelHandler)
 } catch {
     print("Failed to initialize: \(error)")
 }
@@ -78,12 +79,22 @@ Task {
 For SwiftUI apps, use the provided `UNetVisualizerView`:
 
 ```swift
+import SwiftUI
+import CoreML
+import UNetVisualizerKit
+
 struct ContentView: View {
-    let modelURL = Bundle.main.url(forResource: "MyModel", withExtension: "mlmodel")!
-    
     var body: some View {
         NavigationView {
-            UNetVisualizerView(modelURL: modelURL)
+            do {
+                let modelURL = Bundle.main.url(forResource: "MyModel", withExtension: "mlmodel")!
+                let model = try MLModel(contentsOf: modelURL)
+                UNetVisualizerView(model: model)
+            } catch {
+                Text("Failed to load model: \(error.localizedDescription)")
+                    .foregroundColor(.red)
+                    .padding()
+            }
         }
     }
 }
@@ -104,7 +115,8 @@ class VisualizerViewController: UIViewController {
         // Setup visualizer
         do {
             let modelURL = Bundle.main.url(forResource: "MyModel", withExtension: "mlmodel")!
-            visualizer = try UNetVisualizer(modelURL: modelURL)
+            let modelHandler = try UNetModelHandler(modelURL: modelURL)
+            visualizer = UNetVisualizer(modelHandler: modelHandler)
         } catch {
             print("Failed to setup: \(error)")
         }
@@ -138,10 +150,10 @@ Customize the visualization behavior:
 ```swift
 visualizer.configure {
     // Choose visualization mode
-    $0.channelVisualization = .heatmap  // or .overlay, .sideBySide, .grid
+    $0.channelVisualization = .heatmap  // or .overlay, .sideBySide, .grid, .animated
     
     // Select color map
-    $0.colorMap = .viridis  // or .plasma, .inferno, .heatmap
+    $0.colorMap = .viridis  // or .plasma, .inferno, .heatmap, .grayscale, .magma, .rainbow
     
     // Performance settings
     $0.showPerformanceOverlay = true
@@ -176,7 +188,13 @@ visualizer.configure {
 let cameraStream = setupCameraStream()  // Your camera setup
 
 Task {
-    try await visualizer.processStream(cameraStream)
+    for await image in cameraStream {
+        do {
+            _ = try await visualizer.process(image)
+        } catch {
+            print("Processing failed: \(error)")
+        }
+    }
 }
 ```
 
@@ -238,4 +256,4 @@ See the `Examples/DemoApp` folder for a complete working example.
 
 ---
 
-Need help? [Open an issue](https://github.com/yourusername/UNetVisualizerKit/issues) on GitHub.
+Need help? [Open an issue](https://github.com/andrejnesterov/UNetVisualizerKit/issues) on GitHub.

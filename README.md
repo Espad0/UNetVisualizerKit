@@ -21,7 +21,8 @@ Transform how developers visualize and debug neural network predictions on iOS d
 import UNetVisualizerKit
 
 // Initialize with your Core ML model
-let visualizer = UNetVisualizer(modelURL: modelURL)
+let model = try MLModel(contentsOf: modelURL)
+let visualizer = try UNetVisualizer(model: model)
 
 // Configure visualization
 visualizer.configure {
@@ -32,7 +33,7 @@ visualizer.configure {
 
 // Process and visualize
 let result = try await visualizer.process(image)
-print("Inference time: \(result.inferenceTime)ms")
+print("Inference time: \(result.prediction.inferenceTime)ms")
 ```
 
 ## 📱 Features
@@ -76,7 +77,7 @@ UNetVisualizerKit/
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/yourusername/UNetVisualizerKit.git", from: "1.0.0")
+    .package(url: "https://github.com/andrejnesterov/UNetVisualizerKit.git", from: "1.0.0")
 ]
 ```
 
