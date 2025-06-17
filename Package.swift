@@ -24,23 +24,12 @@ let package = Package(
                 .product(name: "AsyncAlgorithms", package: "swift-async-algorithms"),
                 .product(name: "Collections", package: "swift-collections")
             ],
-            path: "Sources/UNetVisualizerKit",
-            resources: [
-                .process("Resources")
-            ]
+            path: "Sources/UNetVisualizerKit"
         ),
         .testTarget(
             name: "UNetVisualizerKitTests",
             dependencies: ["UNetVisualizerKit"],
-            path: "Tests/UNetVisualizerKitTests",
-            resources: [
-                .process("Resources")
-            ]
-        ),
-        .testTarget(
-            name: "PerformanceTests",
-            dependencies: ["UNetVisualizerKit"],
-            path: "Tests/PerformanceTests"
+            path: "Tests/UNetVisualizerKitTests"
         )
     ]
 )

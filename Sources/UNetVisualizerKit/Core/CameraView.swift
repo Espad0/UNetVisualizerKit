@@ -3,6 +3,9 @@ import AVFoundation
 import CoreML
 import Vision
 
+#if os(iOS)
+import UIKit
+
 public struct CameraView: View {
     @StateObject private var camera = CameraManager()
     @State private var processedResult: VisualizationResult?
@@ -94,6 +97,7 @@ public struct CameraView: View {
 }
 
 // MARK: - Camera Manager
+@available(iOS 15.0, *)
 class CameraManager: NSObject, ObservableObject {
     @Published var isPaused = false
     @Published var permissionGranted = false
@@ -492,3 +496,5 @@ extension CVPixelBuffer {
         return context.createCGImage(ciImage, from: ciImage.extent)
     }
 }
+
+#endif // os(iOS)
