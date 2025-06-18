@@ -17,7 +17,7 @@ Computer vision developers often need to test their neural nets on devices: how 
 
 ## 🚀 Quick Start
 
-Getting started is incredibly simple - just 3 steps:
+Getting started - just 3 steps:
 
 ### 1. Add the Package
 In Xcode: **File → Add Package Dependencies** → `https://github.com/andrejnesterov/UNetVisualizerKit`
@@ -53,8 +53,8 @@ You'll get a complete visualization app with photo picker, camera, real-time pro
 ## 📱 Examples
 
 <p align="center">
-  <img src="../IMG_3375.PNG" width="300" alt="UNetVisualizerKit Example 1" />
-  <img src="../IMG_3376.PNG" width="300" alt="UNetVisualizerKit Example 2" />
+  <img src="images/IMG_3375.PNG" width="300" alt="UNetVisualizerKit Example 1" />
+  <img src="images/IMG_3376.PNG" width="300" alt="UNetVisualizerKit Example 2" />
 </p>
 
 ## 🏗 Architecture
