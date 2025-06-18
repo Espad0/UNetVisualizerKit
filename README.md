@@ -52,7 +52,10 @@ You'll get a complete visualization app with photo picker, camera, real-time pro
 
 ## 📱 Examples
 
-TODO: provide image examples
+<p align="center">
+  <img src="../IMG_3375.PNG" width="300" alt="UNetVisualizerKit Example 1" />
+  <img src="../IMG_3376.PNG" width="300" alt="UNetVisualizerKit Example 2" />
+</p>
 
 ## 🏗 Architecture
 

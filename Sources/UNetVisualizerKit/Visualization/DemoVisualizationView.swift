@@ -77,7 +77,7 @@ public struct DemoVisualizationView: View {
                 }
             }
             .padding()
-            .navigationTitle("U-Net Visualizer Demo")
+            .navigationTitle("U-Net Visualizer")
         }
         .alert("Error", isPresented: $showError) {
             Button("OK") { }
