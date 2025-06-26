@@ -1,6 +1,6 @@
 # UNetVisualizerKit 
 
-A production-ready iOS framework for visualizing U-Net neural network predictions with real-time performance monitoring.
+A simple iOS framework for visualizing U-Net neural network predictions with real-time performance monitoring.
 
 ![Swift](https://img.shields.io/badge/Swift-5.9-orange.svg)
 ![iOS](https://img.shields.io/badge/iOS-15.0+-blue.svg)
@@ -10,9 +10,9 @@ A production-ready iOS framework for visualizing U-Net neural network prediction
 ## 🎯 Mission
 
 Computer vision developers often need to test their neural nets on devices: how they perform, what they predict. This repo helps developers visualize and debug neural network predictions on iOS devices by providing:
-- 📱 **Real-time visualization** of U-Net style CNNs predictions with channel-specific views
-- 🎨 **Model output** – renders per-channel masks, alpha-blends them over live camera or still images
-- ⚡ **Performance metrics** – live FPS, per-inference latency, and energy-impact read-outs tell you exactly how your network behaves in production.
+- 📱 **Real-time visualization** of CNNs predictions with channel-specific views
+- 🎨 **Model output** of per-channel masks, alpha-blended over live camera or still images
+- ⚡ **Performance metrics** of live FPS, per-inference latency
 
 
 ## 🚀 Quick Start
